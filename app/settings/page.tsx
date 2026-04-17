@@ -49,20 +49,21 @@ export default function SettingsPage() {
   return (
     <div className="p-6 max-w-lg flex flex-col gap-6">
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-neutral-400 uppercase tracking-wide">Account</h2>
-        <div className="bg-neutral-900 rounded p-4 flex flex-col gap-3 text-sm">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Account</h2>
+        <div className="rounded p-4 flex flex-col gap-3 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center justify-between">
-            <span className="text-neutral-400">Signed in as</span>
-            <span className="text-neutral-200 font-mono">{userId ?? "…"}</span>
+            <span style={{ color: "var(--ink-muted)" }}>Signed in as</span>
+            <span className="font-mono" style={{ color: "var(--ink)" }}>{userId ?? "…"}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-neutral-400">Library status</span>
-            <span className="text-neutral-200">{healthInfo ?? "…"}</span>
+            <span style={{ color: "var(--ink-muted)" }}>Library status</span>
+            <span style={{ color: "var(--ink)" }}>{healthInfo ?? "…"}</span>
           </div>
           <form action="/api/auth/logout" method="post" className="pt-1">
             <button
               type="submit"
-              className="px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-sm"
+              className="px-4 py-2 rounded text-sm transition-colors"
+              style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}
             >
               Log out
             </button>
@@ -71,12 +72,12 @@ export default function SettingsPage() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-neutral-400 uppercase tracking-wide">Playback</h2>
-        <div className="bg-neutral-900 rounded p-4 text-sm">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Playback</h2>
+        <div className="rounded p-4 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
           <label className="flex items-center justify-between gap-3">
             <div>
-              <span className="text-neutral-200">Auto-scroll</span>
-              <p className="text-xs text-neutral-500 mt-0.5">Scroll chord sheets in sync with playback progress</p>
+              <span style={{ color: "var(--ink)" }}>Auto-scroll</span>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-faint)" }}>Scroll chord sheets in sync with playback progress</p>
             </div>
             <input
               type="checkbox"
@@ -86,6 +87,25 @@ export default function SettingsPage() {
               className="w-4 h-4"
             />
           </label>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Spotify Permissions</h2>
+        <div className="rounded p-4 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <p style={{ color: "var(--ink-muted)" }} className="mb-3">
+            Playback control shortcuts (space, j/k/l) require additional Spotify permissions.
+            If play/pause shortcuts don&apos;t work, re-authenticate to grant them.
+          </p>
+          <form action="/api/auth/login" method="get">
+            <button
+              type="submit"
+              className="px-4 py-2 rounded text-sm transition-colors"
+              style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
+            >
+              Logout &amp; reconnect
+            </button>
+          </form>
         </div>
       </section>
     </div>

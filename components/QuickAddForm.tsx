@@ -22,16 +22,22 @@ type Props = {
   onCreated: (id: string) => void;
 };
 
+const inputStyle = {
+  backgroundColor: "var(--bg-surface)",
+  color: "var(--ink)",
+  border: "1px solid var(--border)"
+};
+
+const inputFocusClass = "focus:outline-none focus:ring-1 focus:ring-[var(--accent)/40]";
+
 export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
   const [track, setTrack] = useState<TrackStub | undefined>(initialTrack);
 
-  // Spotify search state (only used when no track provided)
   const [searchInput, setSearchInput] = useState("");
   const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Form state
   const [title, setTitle] = useState(initialTrack?.title ?? "");
   const [artist, setArtist] = useState(initialTrack?.artists.join(", ") ?? "");
   const [format, setFormat] = useState<"chordpro" | "ascii-tab">("chordpro");
@@ -41,7 +47,6 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
   const [suggestedChords, setSuggestedChords] = useState<ExternalChords | null>(null);
   const [fetchingChords, setFetchingChords] = useState(false);
 
-  // When a track is selected, prefill form fields and fetch chord suggestions
   useEffect(() => {
     if (!track?.title) return;
     setTitle(track.title);
@@ -100,10 +105,9 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
 
   return (
     <div className="p-4 flex flex-col gap-4 max-w-2xl">
-      {/* Spotify search step when no track is pre-selected */}
       {!initialTrack && (
         <div className="flex flex-col gap-3">
-          <p className="text-neutral-400 text-sm">
+          <p className="text-sm" style={{ color: "var(--ink-muted)" }}>
             Search Spotify to prefill track info and chord suggestions, or fill in the form manually below.
           </p>
           <form onSubmit={runSearch} className="flex gap-2">
@@ -112,25 +116,30 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               placeholder="Search Spotify…"
-              className="flex-1 bg-neutral-900 rounded px-3 py-2 text-sm placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+              className={`flex-1 rounded px-3 py-2 text-sm ${inputFocusClass}`}
+              style={{ ...inputStyle, outlineColor: "transparent" }}
             />
             <button
               type="submit"
               disabled={searching || !searchInput.trim()}
-              className="px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700 disabled:opacity-40 text-sm"
+              className="px-4 py-2 rounded text-sm disabled:opacity-40 transition-colors"
+              style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)" }}
             >
               {searching ? "Searching…" : "Search"}
             </button>
           </form>
-          {searchError && <div className="text-red-400 text-sm">{searchError}</div>}
+          {searchError && <div className="text-sm" style={{ color: "var(--danger)" }}>{searchError}</div>}
           {searchResults.length > 0 && (
-            <ul className="divide-y divide-neutral-800 border border-neutral-800 rounded">
+            <ul className="rounded overflow-hidden" style={{ border: "1px solid var(--border)" }}>
               {searchResults.map(t => (
-                <li key={t.trackId}>
+                <li key={t.trackId} style={{ borderBottom: "1px solid var(--border)" }}>
                   <button
                     type="button"
                     onClick={() => setTrack({ trackId: t.trackId, title: t.title, artists: t.artists })}
-                    className="w-full flex items-center gap-3 py-2 px-3 hover:bg-neutral-900 text-left"
+                    className="w-full flex items-center gap-3 py-2 px-3 text-left transition-colors"
+                    style={{ color: "var(--ink)" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--bg-alt)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
                   >
                     {t.albumArt && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -138,7 +147,7 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{t.title}</div>
-                      <div className="text-xs text-neutral-400 truncate">{t.artists.join(", ")}</div>
+                      <div className="text-xs truncate" style={{ color: "var(--ink-muted)" }}>{t.artists.join(", ")}</div>
                     </div>
                   </button>
                 </li>
@@ -146,55 +155,72 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
             </ul>
           )}
           {track && (
-            <div className="text-sm text-neutral-300 bg-neutral-900 rounded px-3 py-2">
-              Selected: <span className="font-medium">{track.title}</span> — {track.artists.join(", ")}
+            <div className="text-sm rounded px-3 py-2" style={{ backgroundColor: "var(--bg-surface)", color: "var(--ink-muted)" }}>
+              Selected: <span className="font-medium" style={{ color: "var(--ink)" }}>{track.title}</span> — {track.artists.join(", ")}
               <button
                 type="button"
                 onClick={() => { setTrack(undefined); setTitle(""); setArtist(""); setSuggestedChords(null); }}
-                className="ml-3 text-xs text-neutral-500 hover:text-neutral-300"
+                className="ml-3 text-xs transition-colors"
+                style={{ color: "var(--ink-faint)" }}
               >
                 clear
               </button>
             </div>
           )}
-          <hr className="border-neutral-800" />
+          <hr style={{ borderColor: "var(--border)" }} />
         </div>
       )}
 
-      {/* Add form */}
       <form onSubmit={submit} className="flex flex-col gap-3">
         {initialTrack && (
-          <p className="text-neutral-300">No sheet in the library for this track. Add one:</p>
+          <p style={{ color: "var(--ink-muted)" }}>No sheet in the library for this track. Add one:</p>
         )}
-        <label className="flex flex-col text-sm">Title
-          <input className="bg-neutral-900 p-2 rounded" value={title} onChange={e => setTitle(e.target.value)} />
+        <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Title
+          <input
+            className={`rounded p-2 mt-1 ${inputFocusClass}`}
+            style={{ ...inputStyle, color: "var(--ink)" }}
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+          />
         </label>
-        <label className="flex flex-col text-sm">Artist
-          <input className="bg-neutral-900 p-2 rounded" value={artist} onChange={e => setArtist(e.target.value)} />
+        <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Artist
+          <input
+            className={`rounded p-2 mt-1 ${inputFocusClass}`}
+            style={{ ...inputStyle, color: "var(--ink)" }}
+            value={artist}
+            onChange={e => setArtist(e.target.value)}
+          />
         </label>
-        <label className="flex flex-col text-sm">Format
-          <select className="bg-neutral-900 p-2 rounded" value={format} onChange={e => setFormat(e.target.value as "chordpro" | "ascii-tab")}>
+        <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Format
+          <select
+            className={`rounded p-2 mt-1 ${inputFocusClass}`}
+            style={{ ...inputStyle, color: "var(--ink)" }}
+            value={format}
+            onChange={e => setFormat(e.target.value as "chordpro" | "ascii-tab")}
+          >
             <option value="chordpro">ChordPro</option>
             <option value="ascii-tab">ASCII tab</option>
           </select>
         </label>
-        <label className="flex flex-col text-sm">Content
+        <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Content
           <textarea
-            className="bg-neutral-900 p-2 rounded font-mono min-h-64"
+            className={`rounded p-2 mt-1 min-h-64 ${inputFocusClass}`}
+            style={{ ...inputStyle, color: "var(--ink)", fontFamily: "var(--font-mono-brand, monospace)" }}
             value={content}
             onChange={e => setContent(e.target.value)}
             placeholder={format === "chordpro" ? "[C]Hey [G]Jude..." : "e|---0---3---5---"}
           />
         </label>
         {fetchingChords && (
-          <span className="text-sm text-neutral-400">Fetching chord suggestions…</span>
+          <span className="text-sm" style={{ color: "var(--ink-muted)" }}>Fetching chord suggestions…</span>
         )}
         {!fetchingChords && suggestedChords && (
           <div className="flex items-center gap-3 text-sm">
             <button
               type="button"
               onClick={() => setContent(suggestedChords.content)}
-              className="px-3 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-100"
+              className="px-3 py-1 rounded transition-colors"
+              style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink)" }}
             >
               Use suggested chords from {suggestedChords.sourceName}
             </button>
@@ -202,14 +228,21 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
               href={suggestedChords.sourceUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-xs text-neutral-400 hover:text-neutral-200 underline"
+              className="text-xs underline transition-colors"
+              style={{ color: "var(--ink-muted)" }}
             >
               view source
             </a>
           </div>
         )}
-        {error && <div className="text-red-400 text-sm">{error}</div>}
-        <button disabled={saving} className="px-4 py-2 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50">
+        {error && <div className="text-sm" style={{ color: "var(--danger)" }}>{error}</div>}
+        <button
+          disabled={saving}
+          className="px-4 py-2 rounded transition-colors disabled:opacity-50"
+          style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
+          onMouseEnter={e => { if (!saving) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-hover)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent)"; }}
+        >
           {saving ? "Saving…" : "Save"}
         </button>
       </form>

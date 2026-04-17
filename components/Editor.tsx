@@ -34,20 +34,41 @@ export function Editor({ id, onClose, onSaved }: { id: string; onClose: () => vo
     finally { setSaving(false); }
   }
 
-  if (loading) return <div className="p-4 text-neutral-400">Loading…</div>;
+  if (loading) return <div className="p-4" style={{ color: "var(--ink-muted)" }}>Loading…</div>;
   return (
     <div className="p-4 flex flex-col gap-3">
       <textarea
-        className="bg-neutral-900 p-2 rounded font-mono min-h-96"
+        className="p-2 rounded min-h-96"
+        style={{
+          backgroundColor: "var(--bg-surface)",
+          color: "var(--ink)",
+          fontFamily: "var(--font-mono-brand, monospace)",
+          border: "1px solid var(--border)"
+        }}
         value={content}
         onChange={e => setContent(e.target.value)}
       />
-      {error && <div className="text-red-400 text-sm">{error}</div>}
+      {error && <div className="text-sm" style={{ color: "var(--danger)" }}>{error}</div>}
       <div className="flex gap-2">
-        <button onClick={save} disabled={saving} className="px-4 py-2 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50">
+        <button
+          onClick={save}
+          disabled={saving}
+          className="px-4 py-2 rounded transition-colors disabled:opacity-50"
+          style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
+          onMouseEnter={e => { if (!saving) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-hover)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent)"; }}
+        >
           {saving ? "Saving…" : "Save"}
         </button>
-        <button onClick={onClose} className="px-4 py-2 rounded bg-neutral-800 hover:bg-neutral-700">Cancel</button>
+        <button
+          onClick={onClose}
+          className="px-4 py-2 rounded transition-colors"
+          style={{ backgroundColor: "var(--bg-surface)", color: "var(--ink-muted)" }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--bg-alt)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--bg-surface)"; }}
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );

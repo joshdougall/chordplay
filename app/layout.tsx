@@ -1,6 +1,10 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Lora, JetBrains_Mono } from "next/font/google";
 import { Header } from "@/components/Header";
+
+const lora = Lora({ subsets: ["latin"], variable: "--font-lora" });
+const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono-brand", weight: "400" });
 
 export const metadata: Metadata = {
   title: "Chordplay",
@@ -10,7 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="flex flex-col h-screen bg-neutral-950 text-neutral-100">
+      <body className={`${lora.variable} ${jetbrains.variable} flex flex-col h-screen`} style={{ backgroundColor: "var(--bg)", color: "var(--ink)" }}>
         <Header />
         <main className="flex-1 overflow-auto">{children}</main>
       </body>
