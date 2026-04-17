@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useNowPlaying } from "@/hooks/useNowPlaying";
 import { NowPlayingHeader } from "@/components/NowPlayingHeader";
 import { ConnectSpotify } from "@/components/ConnectSpotify";
@@ -18,7 +17,6 @@ type MatchResponse = { match: LibraryEntry | null; confidence: "exact" | "fuzzy"
 export default function HomePage() {
   const np = useNowPlaying();
   const [connected, setConnected] = useState<boolean | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [matchResp, setMatchResp] = useState<MatchResponse | null>(null);
   const [content, setContent] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<Prefs | null>(null);
@@ -32,7 +30,6 @@ export default function HomePage() {
       const res = await fetch("/api/auth/status");
       const body = await res.json().catch(() => ({ authenticated: false }));
       setConnected(!!body.authenticated);
-      if (body.userId) setUserId(body.userId);
     })();
   }, []);
 
@@ -81,7 +78,7 @@ export default function HomePage() {
   if (connected === null) return <div className="p-8 text-neutral-400">Loading…</div>;
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-full">
       <NowPlayingHeader data={np.data} />
       <div className="p-2 flex items-center gap-3 border-b border-neutral-800 text-sm">
         <label className="flex items-center gap-2">
@@ -121,11 +118,6 @@ export default function HomePage() {
             </button>
           </>
         )}
-        <Link href="/library" className="text-neutral-500 hover:text-neutral-300 ml-auto">Library</Link>
-        {userId && <span className="text-neutral-600 text-xs">Signed in as {userId}</span>}
-        <form action="/api/auth/logout" method="post">
-          <button className="text-neutral-500 hover:text-neutral-300" type="submit">Logout</button>
-        </form>
       </div>
       <div ref={scrollRef} className="flex-1 overflow-auto">
         {editing && matchResp?.match ? (

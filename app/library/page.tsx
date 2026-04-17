@@ -74,7 +74,7 @@ export default function LibraryPage() {
 
   if (addingTrack) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-neutral-100">
+      <div className="bg-neutral-950 text-neutral-100">
         <div className="p-4 border-b border-neutral-800 flex items-center gap-3">
           <button
             onClick={() => setAddingTrack(null)}
@@ -96,12 +96,7 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      <div className="p-4 border-b border-neutral-800 flex items-center gap-3">
-        <Link href="/" className="text-neutral-400 hover:text-neutral-200 text-sm">← Now Playing</Link>
-        <h1 className="text-lg font-semibold">Library</h1>
-      </div>
-
+    <div className="bg-neutral-950 text-neutral-100">
       <div className="p-4 max-w-3xl mx-auto flex flex-col gap-6">
         {/* Library filter */}
         <section>

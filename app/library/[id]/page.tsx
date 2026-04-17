@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, use, useCallback } from "react";
-import Link from "next/link";
 import { ChordProView } from "@/components/ChordProView";
 import { TabView } from "@/components/TabView";
 import { Editor } from "@/components/Editor";
@@ -35,12 +34,11 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
   useEffect(() => { loadEntry(); }, [loadEntry]);
 
   if (loading) return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-8 text-neutral-400">Loading…</div>
+    <div className="p-8 text-neutral-400">Loading…</div>
   );
   if (error || !data) return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-8">
-      <Link href="/library" className="text-neutral-400 hover:text-neutral-200 text-sm">← Library</Link>
-      <div className="mt-4 text-red-400">Failed to load: {error ?? "not found"}</div>
+    <div className="p-8">
+      <div className="text-red-400">Failed to load: {error ?? "not found"}</div>
     </div>
   );
 
@@ -48,9 +46,8 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
   const isChordPro = entry.format === "chordpro";
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
+    <div className="flex flex-col h-full">
       <div className="p-2 flex items-center gap-3 border-b border-neutral-800 text-sm">
-        <Link href="/library" className="text-neutral-400 hover:text-neutral-200">← Library</Link>
         <span className="flex-1 font-medium truncate">{entry.title}</span>
         <span className="text-neutral-500 shrink-0">{entry.artist}</span>
         {isChordPro && !editing && (
