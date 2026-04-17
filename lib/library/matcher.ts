@@ -10,8 +10,8 @@ export type MatchResult = {
   score?: number;
 };
 
-const ARTIST_FLOOR = 0.75;
-const TITLE_FLOOR = 0.75;
+const ARTIST_FLOOR = 0.80;
+const TITLE_FLOOR = 0.80;
 const FUZZY_THRESHOLD = 0.88;
 const ARTIST_WEIGHT = 0.35;
 const TITLE_WEIGHT = 0.65;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { ChordProView } from "@/components/ChordProView";
 import type { ExternalChords } from "@/lib/external/provider";
 
 export type TrackStub = {
@@ -33,6 +34,7 @@ const inputFocusClass = "focus:outline-none focus:ring-1 focus:ring-[var(--accen
 export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
   const [track, setTrack] = useState<TrackStub | undefined>(initialTrack);
 
+  // Sync internal track when the parent passes a new initialTrack (e.g., Spotify track changed on /).
   useEffect(() => {
     if (initialTrack && initialTrack.trackId !== track?.trackId) {
       setTrack(initialTrack);
@@ -53,6 +55,8 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [suggestedChords, setSuggestedChords] = useState<ExternalChords | null>(null);
   const [fetchingChords, setFetchingChords] = useState(false);
+  // Edit mode: when false, render preview. Default false when auto-fill succeeds, true when user starts typing.
+  const [editMode, setEditMode] = useState(!initialTrack);
 
   useEffect(() => {
     if (!track?.title) return;
@@ -61,18 +65,21 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
     setContent("");
     setSuggestedChords(null);
     setFetchingChords(true);
+    setEditMode(false);  // Switch to preview mode while fetching; we'll stay in preview if fetch succeeds
     const params = new URLSearchParams({ title: track.title, artist: track.artists.join(", ") });
     fetch(`/api/external/chords?${params}`)
       .then(r => r.ok ? r.json() : { match: null })
       .then((body: { match: ExternalChords | null }) => {
         if (body.match) {
           setSuggestedChords(body.match);
-          // Auto-populate content when it's empty — user picked a track, they expect chords to appear.
-          // Don't overwrite anything they've already typed.
           setContent(prev => prev.trim() === "" ? body.match!.content : prev);
+          // Stay in preview mode — user sees rendered chords, can click Edit to tweak
+        } else {
+          // No auto-fill — give the user a textarea to type
+          setEditMode(true);
         }
       })
-      .catch(() => {/* silently ignore */})
+      .catch(() => setEditMode(true))
       .finally(() => setFetchingChords(false));
   }, [track]);
 
@@ -96,8 +103,8 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
     }
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(e?: React.FormEvent) {
+    e?.preventDefault();
     setSaving(true); setError(null);
     try {
       const res = await fetch("/api/library", {
@@ -115,8 +122,10 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
     }
   }
 
+  const hasPreviewableContent = !editMode && content.trim() !== "" && format === "chordpro";
+
   return (
-    <div className="p-4 flex flex-col gap-4 max-w-2xl">
+    <div className="p-4 flex flex-col gap-4 max-w-3xl mx-auto">
       {!initialTrack && (
         <div className="flex flex-col gap-3">
           <p className="text-sm" style={{ color: "var(--ink-muted)" }}>
@@ -171,7 +180,7 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
               Selected: <span className="font-medium" style={{ color: "var(--ink)" }}>{track.title}</span> — {track.artists.join(", ")}
               <button
                 type="button"
-                onClick={() => { setTrack(undefined); setTitle(""); setArtist(""); setSuggestedChords(null); }}
+                onClick={() => { setTrack(undefined); setTitle(""); setArtist(""); setSuggestedChords(null); setContent(""); setEditMode(true); }}
                 className="ml-3 text-xs transition-colors"
                 style={{ color: "var(--ink-faint)" }}
               >
@@ -183,82 +192,135 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
         </div>
       )}
 
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        {initialTrack && (
-          <p style={{ color: "var(--ink-muted)" }}>No sheet in the library for this track. Add one:</p>
-        )}
-        <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Title
-          <input
-            className={`rounded p-2 mt-1 ${inputFocusClass}`}
-            style={{ ...inputStyle, color: "var(--ink)" }}
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Artist
-          <input
-            className={`rounded p-2 mt-1 ${inputFocusClass}`}
-            style={{ ...inputStyle, color: "var(--ink)" }}
-            value={artist}
-            onChange={e => setArtist(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Format
-          <select
-            className={`rounded p-2 mt-1 ${inputFocusClass}`}
-            style={{ ...inputStyle, color: "var(--ink)" }}
-            value={format}
-            onChange={e => setFormat(e.target.value as "chordpro" | "ascii-tab")}
-          >
-            <option value="chordpro">ChordPro</option>
-            <option value="ascii-tab">ASCII tab</option>
-          </select>
-        </label>
-        <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Content
-          <textarea
-            className={`rounded p-2 mt-1 min-h-64 ${inputFocusClass}`}
-            style={{ ...inputStyle, color: "var(--ink)", fontFamily: "var(--font-mono-brand, monospace)" }}
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            placeholder={format === "chordpro" ? "[C]Hey [G]Jude..." : "e|---0---3---5---"}
-          />
-        </label>
-        {fetchingChords && (
-          <span className="text-sm" style={{ color: "var(--ink-muted)" }}>Fetching chord suggestions…</span>
-        )}
-        {!fetchingChords && suggestedChords && (
-          <div className="flex items-center gap-3 text-sm" style={{ color: "var(--ink-muted)" }}>
-            <span>Chords auto-filled from {suggestedChords.sourceName}.</span>
+      {/* Prominent save bar with status — always visible at the top when we have a track */}
+      {track && (
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 py-2 px-3 rounded"
+             style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <div className="flex-1 min-w-0 text-sm">
+            <div className="font-medium truncate" style={{ color: "var(--ink)" }}>{title || track.title}</div>
+            <div className="text-xs truncate" style={{ color: "var(--ink-muted)" }}>
+              {artist || track.artists.join(", ")}
+              {fetchingChords && " · Fetching chords…"}
+              {!fetchingChords && suggestedChords && ` · Auto-filled from ${suggestedChords.sourceName}`}
+              {!fetchingChords && !suggestedChords && " · No chords found online — type or paste below"}
+            </div>
+          </div>
+          {hasPreviewableContent && (
             <button
               type="button"
-              onClick={() => setContent(suggestedChords.content)}
-              className="text-xs underline transition-colors"
-              style={{ color: "var(--ink-muted)" }}
+              onClick={() => setEditMode(true)}
+              className="px-3 py-1.5 rounded text-xs transition-colors"
+              style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}
             >
-              re-fill
+              Edit
             </button>
-            <a
-              href={suggestedChords.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs underline transition-colors"
+          )}
+          <button
+            type="button"
+            onClick={() => submit()}
+            disabled={saving || !content.trim()}
+            className="px-4 py-1.5 rounded text-sm disabled:opacity-40 transition-colors"
+            style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
+            onMouseEnter={e => { if (!saving && content.trim()) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-hover)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent)"; }}
+          >
+            {saving ? "Saving…" : "Save to library"}
+          </button>
+        </div>
+      )}
+
+      {error && <div className="text-sm" style={{ color: "var(--danger)" }}>{error}</div>}
+
+      {/* Preview: rendered chord sheet */}
+      {hasPreviewableContent && (
+        <div className="rounded" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <ChordProView source={content} />
+        </div>
+      )}
+
+      {/* Edit mode: title/artist/format/content form */}
+      {editMode && (
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Title
+            <input
+              className={`rounded p-2 mt-1 ${inputFocusClass}`}
+              style={{ ...inputStyle, color: "var(--ink)" }}
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Artist
+            <input
+              className={`rounded p-2 mt-1 ${inputFocusClass}`}
+              style={{ ...inputStyle, color: "var(--ink)" }}
+              value={artist}
+              onChange={e => setArtist(e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Format
+            <select
+              className={`rounded p-2 mt-1 ${inputFocusClass}`}
+              style={{ ...inputStyle, color: "var(--ink)" }}
+              value={format}
+              onChange={e => setFormat(e.target.value as "chordpro" | "ascii-tab")}
+            >
+              <option value="chordpro">ChordPro</option>
+              <option value="ascii-tab">ASCII tab</option>
+            </select>
+          </label>
+          <label className="flex flex-col text-sm" style={{ color: "var(--ink-muted)" }}>Content
+            <textarea
+              className={`rounded p-2 mt-1 min-h-96 ${inputFocusClass}`}
+              style={{ ...inputStyle, color: "var(--ink)", fontFamily: "var(--font-mono-brand, monospace)" }}
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              placeholder={format === "chordpro" ? "[C]Hey [G]Jude..." : "e|---0---3---5---"}
+            />
+          </label>
+          {suggestedChords && (
+            <div className="flex items-center gap-3 text-xs" style={{ color: "var(--ink-muted)" }}>
+              <button
+                type="button"
+                onClick={() => setContent(suggestedChords.content)}
+                className="underline"
+                style={{ color: "var(--ink-muted)" }}
+              >
+                re-fill from {suggestedChords.sourceName}
+              </button>
+              <a
+                href={suggestedChords.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+                style={{ color: "var(--ink-muted)" }}
+              >
+                view source
+              </a>
+              {track && hasPreviewableContent === false && content.trim() !== "" && format === "chordpro" && (
+                <button
+                  type="button"
+                  onClick={() => setEditMode(false)}
+                  className="underline ml-auto"
+                  style={{ color: "var(--ink-muted)" }}
+                >
+                  preview
+                </button>
+              )}
+            </div>
+          )}
+          {/* Back to preview when in edit mode and preview is available */}
+          {track && content.trim() !== "" && format === "chordpro" && !hasPreviewableContent && (
+            <button
+              type="button"
+              onClick={() => setEditMode(false)}
+              className="text-xs underline self-start"
               style={{ color: "var(--ink-muted)" }}
             >
-              view source
-            </a>
-          </div>
-        )}
-        {error && <div className="text-sm" style={{ color: "var(--danger)" }}>{error}</div>}
-        <button
-          disabled={saving}
-          className="px-4 py-2 rounded transition-colors disabled:opacity-50"
-          style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
-          onMouseEnter={e => { if (!saving) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-hover)"; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent)"; }}
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
-      </form>
+              ← back to preview
+            </button>
+          )}
+        </form>
+      )}
     </div>
   );
 }

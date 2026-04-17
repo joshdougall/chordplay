@@ -248,7 +248,7 @@ export default function HomePage() {
   const versions = matchResp?.allMatches;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-full">
       <NowPlayingHeader data={np.data ?? (lastPlayed ? {
         trackId: lastPlayed.trackId,
         title: lastPlayed.title,
