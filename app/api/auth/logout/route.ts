@@ -12,5 +12,6 @@ export async function POST() {
     clearAccessTokenCache(session.userId);
   }
   await clearSession();
-  return NextResponse.json({ ok: true });
+  const publicOrigin = new URL(cfg.spotifyRedirectUri).origin;
+  return NextResponse.redirect(new URL("/", publicOrigin), 303);
 }
