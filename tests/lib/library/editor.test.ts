@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { writeEntry, createEntry, safePath, setSpotifyTrackId } from "@/lib/library/editor";
+import { writeEntry, createEntry, safePath, setSpotifyTrackId, setVersionName } from "@/lib/library/editor";
 
 describe("editor", () => {
   let dir: string;
@@ -39,6 +39,23 @@ describe("editor", () => {
     await setSpotifyTrackId(dir, "my-song.pro", "trk-new");
     const text = readFileSync(join(dir, "my-song.pro"), "utf8");
     expect(text).toContain("{spotify_track_id: trk-new}");
+  });
+
+  it("setVersionName inserts version directive when missing", async () => {
+    const content = "{title: My Song}\n{artist: Some Artist}\n\n[C]lyrics\n";
+    writeFileSync(join(dir, "versioned.pro"), content);
+    await setVersionName(dir, "versioned.pro", "Capo 3");
+    const text = readFileSync(join(dir, "versioned.pro"), "utf8");
+    expect(text).toContain("{version: Capo 3}");
+  });
+
+  it("setVersionName replaces existing version directive", async () => {
+    const content = "{title: My Song}\n{artist: Some Artist}\n{version: Old Name}\n\n[C]lyrics\n";
+    writeFileSync(join(dir, "versioned2.pro"), content);
+    await setVersionName(dir, "versioned2.pro", "New Name");
+    const text = readFileSync(join(dir, "versioned2.pro"), "utf8");
+    expect(text).toContain("{version: New Name}");
+    expect(text).not.toContain("Old Name");
   });
 
   it("setSpotifyTrackId replaces existing directive", async () => {

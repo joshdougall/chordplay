@@ -41,4 +41,16 @@ describe("LibraryIndex", () => {
     const list = idx.lookupByKey("the beatles|hey jude");
     expect(list).toHaveLength(1);
   });
+
+  it("multiple versions share the same songKey", async () => {
+    writeFileSync(join(dir, "hey-jude-v1.pro"), "{title: Hey Jude}\n{artist: The Beatles}\n{version: Original}");
+    writeFileSync(join(dir, "hey-jude-v2.pro"), "{title: Hey Jude}\n{artist: The Beatles}\n{version: Capo 2}");
+    const idx = new LibraryIndex(dir);
+    await idx.rescan();
+    const all = idx.lookupAllByKey("the beatles|hey jude");
+    expect(all).toHaveLength(2);
+    const names = all.map(e => e.versionName);
+    expect(names).toContain("Original");
+    expect(names).toContain("Capo 2");
+  });
 });

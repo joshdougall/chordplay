@@ -32,6 +32,25 @@ export type CreateInput = {
   folder?: string;
 };
 
+export async function setVersionName(root: string, id: string, versionName: string): Promise<void> {
+  const full = safePath(root, id);
+  const current = await readFile(full, "utf8");
+  const versionRegex = /\{\s*version\s*:\s*[^}]+\}/i;
+  let updated: string;
+  if (versionRegex.test(current)) {
+    updated = current.replace(versionRegex, `{version: ${versionName}}`);
+  } else {
+    const artistMatch = current.match(/\{\s*artist\s*:[^}]+\}\s*\n?/i);
+    if (artistMatch) {
+      const idx = (artistMatch.index ?? 0) + artistMatch[0].length;
+      updated = current.slice(0, idx) + `{version: ${versionName}}\n` + current.slice(idx);
+    } else {
+      updated = `{version: ${versionName}}\n` + current;
+    }
+  }
+  await writeEntry(root, id, updated);
+}
+
 export async function setSpotifyTrackId(root: string, id: string, trackId: string): Promise<void> {
   const full = safePath(root, id);
   const current = await readFile(full, "utf8");

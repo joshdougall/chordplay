@@ -13,6 +13,8 @@ export type LibraryEntry = {
   format: Format;
   spotifyTrackId?: string;
   parseError?: boolean;
+  songKey: string;
+  versionName?: string;
 };
 
 const SUPPORTED = /\.(pro|cho|txt|gp|gpx|gp5)$/i;
@@ -43,10 +45,13 @@ export class LibraryIndex {
       }
       const meta: Metadata = parseMetadata(id, content);
       const format = detectFormat(absPath, content);
+      const songKey = normalizeKey(meta.artist, meta.title);
       const entry: LibraryEntry = {
         id, path: absPath,
         title: meta.title, artist: meta.artist,
-        format, spotifyTrackId: meta.spotifyTrackId
+        format, spotifyTrackId: meta.spotifyTrackId,
+        songKey,
+        versionName: meta.versionName,
       };
       this.remove(id);
       this.byId.set(id, entry);
@@ -58,7 +63,8 @@ export class LibraryIndex {
     } catch (err) {
       const entry: LibraryEntry = {
         id, path: absPath, title: id, artist: "",
-        format: "chordpro", parseError: true
+        format: "chordpro", parseError: true,
+        songKey: normalizeKey("", id),
       };
       this.byId.set(id, entry);
     }
@@ -86,6 +92,9 @@ export class LibraryIndex {
   }
   lookupByKey(key: string): LibraryEntry[] {
     return (this.byKey.get(key) ?? []).map(id => this.byId.get(id)!).filter(Boolean);
+  }
+  lookupAllByKey(key: string): LibraryEntry[] {
+    return this.lookupByKey(key);
   }
   keys(): IterableIterator<string> { return this.byKey.keys(); }
 }

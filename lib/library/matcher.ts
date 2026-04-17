@@ -5,6 +5,7 @@ export type MatchInput = { trackId: string; title: string; artists: string[] };
 export type MatchPrefs = { trackOverrides?: Record<string, string> };
 export type MatchResult = {
   match: LibraryEntry | null;
+  allMatches?: LibraryEntry[];
   confidence: "exact" | "fuzzy" | null;
   score?: number;
 };
@@ -22,12 +23,24 @@ export function match(index: LibraryIndex, input: MatchInput, prefs: MatchPrefs)
     if (e) return { match: e, confidence: "exact" };
   }
   const byId = index.lookupByTrackId(input.trackId);
-  if (byId) return { match: byId, confidence: "exact" };
+  if (byId) {
+    const allByKey = index.lookupAllByKey(byId.songKey);
+    return {
+      match: byId, confidence: "exact",
+      allMatches: allByKey.length > 1 ? allByKey : undefined,
+    };
+  }
 
   const artist = input.artists.join(", ");
   const wantedKey = normalizeKey(artist, input.title);
   const byKey = index.lookupByKey(wantedKey);
-  if (byKey.length > 0) return { match: byKey[0], confidence: "exact" };
+  if (byKey.length > 0) {
+    const allByKey = index.lookupAllByKey(wantedKey);
+    return {
+      match: byKey[0], confidence: "exact",
+      allMatches: allByKey.length > 1 ? allByKey : undefined,
+    };
+  }
 
   const wantedArtist = normalizeField(artist);
   const wantedTitle = normalizeField(input.title);
@@ -43,6 +56,12 @@ export function match(index: LibraryIndex, input: MatchInput, prefs: MatchPrefs)
       best = { entry, score: combined };
     }
   }
-  if (best) return { match: best.entry, confidence: "fuzzy", score: best.score };
+  if (best) {
+    const allByKey = index.lookupAllByKey(best.entry.songKey);
+    return {
+      match: best.entry, confidence: "fuzzy", score: best.score,
+      allMatches: allByKey.length > 1 ? allByKey : undefined,
+    };
+  }
   return { match: null, confidence: null };
 }

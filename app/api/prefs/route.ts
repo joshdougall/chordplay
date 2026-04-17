@@ -23,6 +23,7 @@ export async function PUT(req: NextRequest) {
     songPreferences: body.songPreferences ?? current.songPreferences,
     trackOverrides: body.trackOverrides ?? current.trackOverrides,
     songTranspose: body.songTranspose ?? current.songTranspose,
+    preferredVersion: body.preferredVersion ?? current.preferredVersion,
   };
   await writePrefs(cfg.dataPath, session.userId, merged);
   return NextResponse.json(merged);

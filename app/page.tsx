@@ -14,7 +14,12 @@ import { ShortcutsHelp } from "@/components/ShortcutsHelp";
 import type { LibraryEntry } from "@/lib/library/index";
 import type { Prefs } from "@/lib/prefs/store";
 
-type MatchResponse = { match: LibraryEntry | null; confidence: "exact" | "fuzzy" | null; score?: number };
+type MatchResponse = {
+  match: LibraryEntry | null;
+  allMatches?: LibraryEntry[];
+  confidence: "exact" | "fuzzy" | null;
+  score?: number;
+};
 
 type LastPlayedTrack = {
   trackId: string;
@@ -42,6 +47,8 @@ export default function HomePage() {
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [dismissedTrackId, setDismissedTrackId] = useState<string | null>(null);
   const [lastPlayed, setLastPlayed] = useState<LastPlayedTrack | null>(null);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [duplicatingVersion, setDuplicatingVersion] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { fetch("/api/prefs").then(r => r.json()).then(setPrefs); }, []);
@@ -60,14 +67,12 @@ export default function HomePage() {
       setLastPlayed(null);
       return;
     }
-    if (np.data === null) {
-      fetch("/api/spotify/recently-played")
-        .then(r => r.ok ? r.json() : { tracks: [] })
-        .then((body: { tracks: LastPlayedTrack[] }) => {
-          if (body.tracks?.[0]) setLastPlayed(body.tracks[0]);
-        })
-        .catch(() => {});
-    }
+    fetch("/api/spotify/recently-played")
+      .then(r => r.ok ? r.json() : { tracks: [] })
+      .then((body: { tracks: LastPlayedTrack[] }) => {
+        if (body.tracks?.[0]) setLastPlayed(body.tracks[0]);
+      })
+      .catch(() => {});
   }, [np.data]);
 
   // Effective track for matching: live playback or last-played fallback
@@ -88,6 +93,7 @@ export default function HomePage() {
       if (prev && prev !== trackId) return null;
       return prev;
     });
+    setSelectedVersionId(null);
 
     if (!trackId || !effectiveTrack) { setMatchResp(null); setContent(null); return; }
     (async () => {
@@ -109,7 +115,15 @@ export default function HomePage() {
           }).catch(() => {});
         }
 
-        const r = await fetch(`/api/library/${encodeURIComponent(data.match.id)}`);
+        // Check for preferred version
+        let entryToLoad = data.match;
+        if (data.allMatches && data.allMatches.length > 1 && prefs?.preferredVersion) {
+          const preferredId = prefs.preferredVersion[data.match.songKey];
+          const preferred = preferredId ? data.allMatches.find(e => e.id === preferredId) : null;
+          if (preferred) entryToLoad = preferred;
+        }
+
+        const r = await fetch(`/api/library/${encodeURIComponent(entryToLoad.id)}`);
         if (r.ok) {
           const { content: c } = await r.json();
           setContent(c);
@@ -121,13 +135,23 @@ export default function HomePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackId]);
 
-  const currentId = matchResp?.match?.id;
+  // Load content when version is explicitly selected
+  useEffect(() => {
+    if (!selectedVersionId) return;
+    fetch(`/api/library/${encodeURIComponent(selectedVersionId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setContent(data.content); })
+      .catch(() => {});
+  }, [selectedVersionId]);
+
+  const currentEntry = selectedVersionId
+    ? matchResp?.allMatches?.find(e => e.id === selectedVersionId) ?? matchResp?.match
+    : matchResp?.match;
+  const currentId = currentEntry?.id;
   const transposeOffset: number = (currentId ? (prefs?.songTranspose?.[currentId] ?? 0) : 0);
 
   // Determine if current match should be shown (respect dismissal)
-  const effectiveMatch = (matchResp?.match && matchResp.match.id !== dismissedTrackId && dismissedTrackId !== trackId)
-    ? matchResp.match
-    : null;
+  const effectiveMatch = (matchResp?.match && dismissedTrackId !== trackId) ? currentEntry ?? null : null;
 
   async function toggleAutoScroll() {
     if (!prefs) return;
@@ -158,21 +182,48 @@ export default function HomePage() {
   async function lockFuzzyMatch() {
     if (!matchResp?.match || !trackId) return;
     const matchId = matchResp.match.id;
-    // Update prefs
     const newPrefs = {
       ...prefs,
       trackOverrides: { ...(prefs?.trackOverrides ?? {}), [trackId]: matchId }
     };
     await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newPrefs) });
     setPrefs(newPrefs as Prefs);
-    // Bake in spotify_track_id
     fetch(`/api/library/${encodeURIComponent(matchId)}/spotify-track`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ trackId })
     }).catch(() => {});
-    // Update local match to exact
     setMatchResp({ ...matchResp, confidence: "exact", score: undefined });
+  }
+
+  async function selectVersion(entry: LibraryEntry) {
+    setSelectedVersionId(entry.id);
+    if (!prefs || !matchResp?.match) return;
+    const newPrefs = {
+      ...prefs,
+      preferredVersion: { ...(prefs.preferredVersion ?? {}), [matchResp.match.songKey]: entry.id }
+    };
+    await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newPrefs) });
+    setPrefs(newPrefs as Prefs);
+  }
+
+  async function duplicateAsVersion() {
+    if (!currentEntry) return;
+    const versionName = window.prompt("Version name for the duplicate:", "Alternate");
+    if (!versionName?.trim()) return;
+    setDuplicatingVersion(true);
+    try {
+      const res = await fetch(`/api/library/${encodeURIComponent(currentEntry.id)}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionName: versionName.trim() })
+      });
+      if (!res.ok) throw new Error(await res.text());
+    } catch (err) {
+      alert(`Failed: ${(err as Error).message}`);
+    } finally {
+      setDuplicatingVersion(false);
+    }
   }
 
   useKeyboardShortcuts({
@@ -194,6 +245,7 @@ export default function HomePage() {
   if (connected === null) return <div className="p-8" style={{ color: "var(--ink-muted)" }}>Loading…</div>;
 
   const isLastPlayed = np.data === null && lastPlayed !== null;
+  const versions = matchResp?.allMatches;
 
   return (
     <div className="flex flex-col h-full">
@@ -273,6 +325,15 @@ export default function HomePage() {
             <button onClick={() => setEditing(true)} className="px-2 py-1 rounded" style={btnStyle}>
               Edit
             </button>
+            <button
+              onClick={duplicateAsVersion}
+              disabled={duplicatingVersion}
+              className="px-2 py-1 rounded text-xs disabled:opacity-40"
+              style={btnStyle}
+              title="Duplicate as a new version"
+            >
+              {duplicatingVersion ? "Duplicating…" : "Duplicate version"}
+            </button>
           </>
         )}
         <button
@@ -284,6 +345,27 @@ export default function HomePage() {
           ?
         </button>
       </div>
+      {versions && versions.length > 1 && effectiveMatch && (
+        <div className="px-3 py-1.5 flex items-center gap-2 text-xs flex-wrap" style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--bg-surface)" }}>
+          <span style={{ color: "var(--ink-faint)" }}>Version:</span>
+          {versions.map(v => {
+            const isSelected = (selectedVersionId ?? matchResp?.match?.id) === v.id;
+            return (
+              <button
+                key={v.id}
+                onClick={() => selectVersion(v)}
+                className="px-2 py-0.5 rounded transition-colors"
+                style={isSelected
+                  ? { backgroundColor: "var(--accent)", color: "var(--bg)" }
+                  : { backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }
+                }
+              >
+                {v.versionName ?? "Original"}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div ref={scrollRef} className="flex-1 overflow-auto">
         {editing && effectiveMatch ? (
           <Editor id={effectiveMatch.id} onClose={() => setEditing(false)} onSaved={() => setEditing(false)} />

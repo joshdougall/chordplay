@@ -22,6 +22,7 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
   const [editing, setEditing] = useState(false);
   const [prefs, setPrefs] = useState<Prefs | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const { semitones, up, down, reset } = useTranspose();
 
   const loadEntry = useCallback(() => {
@@ -38,6 +39,27 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
 
   useEffect(() => { loadEntry(); }, [loadEntry]);
   useEffect(() => { fetch("/api/prefs").then(r => r.json()).then(setPrefs).catch(() => {}); }, []);
+
+  async function handleDuplicate() {
+    if (!data) return;
+    const versionName = window.prompt("Version name for the duplicate:", "Alternate");
+    if (!versionName?.trim()) return;
+    setDuplicating(true);
+    try {
+      const res = await fetch(`/api/library/${encodeURIComponent(decoded)}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionName: versionName.trim() })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { id: newId } = await res.json();
+      router.push(`/library/${encodeURIComponent(newId)}`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDuplicating(false);
+    }
+  }
 
   async function handleDelete() {
     if (!data) return;
@@ -91,6 +113,15 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
               className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 shrink-0"
             >
               Edit
+            </button>
+            <button
+              onClick={handleDuplicate}
+              disabled={duplicating}
+              className="px-2 py-1 rounded text-xs shrink-0 transition-colors disabled:opacity-50"
+              style={{ backgroundColor: "var(--bg-surface)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}
+              title="Duplicate as a new version"
+            >
+              {duplicating ? "Duplicating…" : "Duplicate version"}
             </button>
             <button
               onClick={handleDelete}

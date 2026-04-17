@@ -65,4 +65,13 @@ describe("matcher", () => {
     const r = match(idx, { trackId: "unknown", title: "favorite country song", artists: ["some artist"] }, {});
     expect(r.match).toBeNull();
   });
+
+  it("populates allMatches when multiple versions exist for same song", async () => {
+    writeFileSync(join(dir, "creep-v2.pro"), "{title: Creep}\n{artist: Radiohead}\n{version: Acoustic}");
+    await idx.rescan();
+    const r = match(idx, { trackId: "unknown", title: "Creep", artists: ["Radiohead"] }, {});
+    expect(r.match?.title).toBe("Creep");
+    expect(r.allMatches).toBeDefined();
+    expect(r.allMatches!.length).toBe(2);
+  });
 });
