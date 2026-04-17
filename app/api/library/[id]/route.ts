@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "node:fs/promises";
 import { getConfig } from "@/lib/config";
-import { writeEntry, safePath } from "@/lib/library/editor";
+import { writeEntry, deleteEntry, safePath } from "@/lib/library/editor";
 import { getLibrary, libraryReady } from "@/lib/library/singleton";
 
 export async function GET(
@@ -38,6 +38,25 @@ export async function PUT(
   try {
     await writeEntry(cfg.libraryPath, decoded, body.content);
     await getLibrary().addOrUpdate(safePath(cfg.libraryPath, decoded));
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  await libraryReady();
+  const { id } = await params;
+  const decoded = decodeURIComponent(id);
+  const cfg = getConfig();
+  const entry = getLibrary().get(decoded);
+  if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
+  try {
+    await deleteEntry(cfg.libraryPath, decoded);
+    getLibrary().remove(decoded);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 400 });

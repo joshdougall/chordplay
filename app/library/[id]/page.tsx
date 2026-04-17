@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, use, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { ChordProView } from "@/components/ChordProView";
 import { TabView } from "@/components/TabView";
 import { Editor } from "@/components/Editor";
@@ -14,11 +15,13 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const decoded = decodeURIComponent(id);
 
+  const router = useRouter();
   const [data, setData] = useState<EntryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [prefs, setPrefs] = useState<Prefs | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { semitones, up, down, reset } = useTranspose();
 
   const loadEntry = useCallback(() => {
@@ -35,6 +38,21 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
 
   useEffect(() => { loadEntry(); }, [loadEntry]);
   useEffect(() => { fetch("/api/prefs").then(r => r.json()).then(setPrefs).catch(() => {}); }, []);
+
+  async function handleDelete() {
+    if (!data) return;
+    const confirmed = window.confirm(`Delete "${data.entry.title}"? This removes the file from the library.`);
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/library/${encodeURIComponent(decoded)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await res.text());
+      router.push("/library");
+    } catch (err) {
+      setError((err as Error).message);
+      setDeleting(false);
+    }
+  }
 
   if (loading) return (
     <div className="p-8 text-neutral-400">Loading…</div>
@@ -67,12 +85,23 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
           </div>
         )}
         {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 shrink-0"
-          >
-            Edit
-          </button>
+          <>
+            <button
+              onClick={() => setEditing(true)}
+              className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 shrink-0"
+            >
+              Edit
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-2 py-1 rounded text-xs shrink-0 transition-colors disabled:opacity-50"
+              style={{ backgroundColor: "var(--bg-surface)", color: "var(--danger)", border: "1px solid var(--border)" }}
+              title="Delete this sheet"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          </>
         )}
       </div>
 

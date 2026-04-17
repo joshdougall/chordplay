@@ -1,4 +1,4 @@
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { Format } from "./format";
 
@@ -16,6 +16,11 @@ export async function writeEntry(root: string, id: string, content: string): Pro
   const tmp = `${target}.tmp.${process.pid}`;
   await writeFile(tmp, content, "utf8");
   await rename(tmp, target);
+}
+
+export async function deleteEntry(root: string, id: string): Promise<void> {
+  const target = safePath(root, id);
+  await unlink(target);
 }
 
 export type CreateInput = {
