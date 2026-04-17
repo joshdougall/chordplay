@@ -50,6 +50,29 @@
 - / — focus filter input on /library
 - ? — shortcuts help overlay
 
+## Pending Ansible changes (homelab-infra work)
+
+For the report-issue feature to work in production, apply these changes in `homelab-infra`:
+
+1. **`ansible/group_vars/all/vault.yml`** — add:
+   ```
+   vault_chords_forgejo_issue_token: "<Forgejo PAT with write:issue scope>"
+   ```
+
+2. **`ansible/roles/chords/defaults/main.yml`** — add:
+   ```yaml
+   chords_forgejo_issue_token: "{{ vault_chords_forgejo_issue_token }}"
+   ```
+
+3. **`ansible/roles/chords/templates/docker-compose.yml.j2`** — add to env block:
+   ```
+   FORGEJO_BASE_URL: "https://forgejo.dougall.ca"
+   FORGEJO_ISSUE_REPO: "joshdougall/chordplay"
+   FORGEJO_ISSUE_TOKEN: "{{ chords_forgejo_issue_token }}"
+   ```
+
+Until these are applied, `FORGEJO_ISSUE_TOKEN` will be absent and the Report Issue button will be hidden automatically (API returns 503).
+
 ## Known gaps / follow-ups
 - ESLint flat-config warning (harmless, pre-existing)
 - `stopWatcher` stored in singleton, never invoked on shutdown (no teardown hook)
@@ -57,6 +80,7 @@
 - No batch playlist download yet (talked about it; not built)
 - No transpose default setting; it's per-song only
 - `/api/library/raw/:id` referenced for Guitar Pro files but not implemented; only matters if user drops .gp files in
+- Chord diagram hover popovers on inline `.chord` spans — palette-only for now, hover is a follow-up
 
 ## Docs
 - Spec: `docs/superpowers/specs/2026-04-16-chordplay-design.md`

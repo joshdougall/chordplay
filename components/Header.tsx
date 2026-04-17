@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ReportIssueButton } from "@/components/ReportIssueButton";
 
 type Tab = { href: string; label: string; match: (path: string) => boolean };
 
@@ -126,6 +127,7 @@ export function Header() {
         {authed && auth?.userId && (
           <span style={{ color: "var(--ink-faint)" }}>{auth.userId}</span>
         )}
+        {authed && <ReportIssueButton />}
         {authed && (
           <form action="/api/auth/logout" method="post">
             <button

@@ -8,6 +8,9 @@ export type Config = {
   libraryPath: string;
   dataPath: string;
   logLevel: "debug" | "info" | "warn" | "error";
+  forgejoBaseUrl: string;
+  forgejoIssueRepo: string;
+  forgejoIssueToken: string | null;
 };
 
 function required(name: string): string {
@@ -30,7 +33,10 @@ export function loadConfig(): Config {
     spotifyRedirectUri: required("SPOTIFY_REDIRECT_URI"),
     libraryPath: required("LIBRARY_PATH"),
     dataPath: required("DATA_PATH"),
-    logLevel: ["debug", "info", "warn", "error"].includes(level) ? level : "info"
+    logLevel: ["debug", "info", "warn", "error"].includes(level) ? level : "info",
+    forgejoBaseUrl: process.env.FORGEJO_BASE_URL ?? "https://forgejo.dougall.ca",
+    forgejoIssueRepo: process.env.FORGEJO_ISSUE_REPO ?? "joshdougall/chordplay",
+    forgejoIssueToken: process.env.FORGEJO_ISSUE_TOKEN ?? null,
   };
 }
 
