@@ -58,7 +58,12 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
     fetch(`/api/external/chords?${params}`)
       .then(r => r.ok ? r.json() : { match: null })
       .then((body: { match: ExternalChords | null }) => {
-        if (body.match) setSuggestedChords(body.match);
+        if (body.match) {
+          setSuggestedChords(body.match);
+          // Auto-populate content when it's empty — user picked a track, they expect chords to appear.
+          // Don't overwrite anything they've already typed.
+          setContent(prev => prev.trim() === "" ? body.match!.content : prev);
+        }
       })
       .catch(() => {/* silently ignore */})
       .finally(() => setFetchingChords(false));
@@ -215,14 +220,15 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
           <span className="text-sm" style={{ color: "var(--ink-muted)" }}>Fetching chord suggestions…</span>
         )}
         {!fetchingChords && suggestedChords && (
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-3 text-sm" style={{ color: "var(--ink-muted)" }}>
+            <span>Chords auto-filled from {suggestedChords.sourceName}.</span>
             <button
               type="button"
               onClick={() => setContent(suggestedChords.content)}
-              className="px-3 py-1 rounded transition-colors"
-              style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink)" }}
+              className="text-xs underline transition-colors"
+              style={{ color: "var(--ink-muted)" }}
             >
-              Use suggested chords from {suggestedChords.sourceName}
+              re-fill
             </button>
             <a
               href={suggestedChords.sourceUrl}
