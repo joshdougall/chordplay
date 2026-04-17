@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { ExternalChords } from "@/lib/external/chordie";
 
 export type TrackStub = {
   trackId: string;
@@ -15,6 +16,22 @@ export function QuickAddForm({ track, onCreated }: { track: TrackStub; onCreated
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggestedChords, setSuggestedChords] = useState<ExternalChords | null>(null);
+  const [fetchingChords, setFetchingChords] = useState(false);
+
+  useEffect(() => {
+    if (!track.title) return;
+    setFetchingChords(true);
+    setSuggestedChords(null);
+    const params = new URLSearchParams({ title: track.title, artist: track.artists.join(", ") });
+    fetch(`/api/external/chords?${params}`)
+      .then(r => r.ok ? r.json() : { match: null })
+      .then((body: { match: ExternalChords | null }) => {
+        if (body.match) setSuggestedChords(body.match);
+      })
+      .catch(() => {/* silently ignore */})
+      .finally(() => setFetchingChords(false));
+  }, [track.title, track.artists]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +75,28 @@ export function QuickAddForm({ track, onCreated }: { track: TrackStub; onCreated
           placeholder={format === "chordpro" ? "[C]Hey [G]Jude..." : "e|---0---3---5---"}
         />
       </label>
+      {fetchingChords && (
+        <span className="text-sm text-neutral-400">Fetching chord suggestions from Chordie…</span>
+      )}
+      {!fetchingChords && suggestedChords && (
+        <div className="flex items-center gap-3 text-sm">
+          <button
+            type="button"
+            onClick={() => setContent(suggestedChords.content)}
+            className="px-3 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-100"
+          >
+            Use suggested chords from Chordie
+          </button>
+          <a
+            href={suggestedChords.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-neutral-400 hover:text-neutral-200 underline"
+          >
+            view source
+          </a>
+        </div>
+      )}
       {error && <div className="text-red-400 text-sm">{error}</div>}
       <button disabled={saving} className="px-4 py-2 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50">
         {saving ? "Saving…" : "Save"}
