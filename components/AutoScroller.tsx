@@ -7,7 +7,7 @@ type Props = {
   progressMs: number;
   durationMs: number;
   speedMultiplier?: number;
-  targetRef: React.RefObject<HTMLElement>;
+  targetRef: React.RefObject<HTMLElement | null>;
 };
 
 export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier = 1, targetRef }: Props) {
