@@ -19,6 +19,7 @@ export async function PUT(req: NextRequest) {
   const current = await readPrefs(cfg.dataPath, session.userId);
   const merged: Prefs = {
     autoScroll: body.autoScroll ?? current.autoScroll,
+    showChordDiagrams: body.showChordDiagrams ?? current.showChordDiagrams,
     songPreferences: body.songPreferences ?? current.songPreferences,
     trackOverrides: body.trackOverrides ?? current.trackOverrides,
     songTranspose: body.songTranspose ?? current.songTranspose,

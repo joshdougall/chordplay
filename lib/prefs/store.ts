@@ -3,12 +3,13 @@ import { join } from "node:path";
 
 export type Prefs = {
   autoScroll: boolean;
+  showChordDiagrams: boolean;
   songPreferences: Record<string, "chords" | "tab">;
   trackOverrides: Record<string, string>;
   songTranspose: Record<string, number>;
 };
 
-const DEFAULT: Prefs = { autoScroll: false, songPreferences: {}, trackOverrides: {}, songTranspose: {} };
+const DEFAULT: Prefs = { autoScroll: false, showChordDiagrams: true, songPreferences: {}, trackOverrides: {}, songTranspose: {} };
 const FILE = "prefs.json";
 const USER_ID_RE = /^[A-Za-z0-9._-]+$/;
 

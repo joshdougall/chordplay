@@ -15,19 +15,36 @@ describe("prefs store", () => {
   it("returns defaults when file absent", async () => {
     const p = await readPrefs(dir, userId);
     expect(p.autoScroll).toBe(false);
+    expect(p.showChordDiagrams).toBe(true);
     expect(p.songPreferences).toEqual({});
     expect(p.trackOverrides).toEqual({});
   });
 
   it("writes and reads prefs", async () => {
-    await writePrefs(dir, userId, { autoScroll: true, songPreferences: { "id1": "tab" }, trackOverrides: { "t1": "id1" }, songTranspose: {} });
+    await writePrefs(dir, userId, { autoScroll: true, showChordDiagrams: false, songPreferences: { "id1": "tab" }, trackOverrides: { "t1": "id1" }, songTranspose: {} });
     const p = await readPrefs(dir, userId);
     expect(p.autoScroll).toBe(true);
+    expect(p.showChordDiagrams).toBe(false);
     expect(p.songPreferences).toEqual({ "id1": "tab" });
   });
 
+  it("round-trips showChordDiagrams", async () => {
+    await writePrefs(dir, userId, { autoScroll: false, showChordDiagrams: false, songPreferences: {}, trackOverrides: {}, songTranspose: {} });
+    const p = await readPrefs(dir, userId);
+    expect(p.showChordDiagrams).toBe(false);
+  });
+
+  it("defaults showChordDiagrams to true when absent in file", async () => {
+    const { writeFile, mkdir } = await import("node:fs/promises");
+    const perUserDir = join(dir, "users", userId);
+    await mkdir(perUserDir, { recursive: true });
+    await writeFile(join(perUserDir, "prefs.json"), JSON.stringify({ autoScroll: false, songPreferences: {}, trackOverrides: {}, songTranspose: {} }), "utf8");
+    const p = await readPrefs(dir, userId);
+    expect(p.showChordDiagrams).toBe(true);
+  });
+
   it("round-trips songTranspose", async () => {
-    await writePrefs(dir, userId, { autoScroll: false, songPreferences: {}, trackOverrides: {}, songTranspose: { "song1": 3, "song2": -2 } });
+    await writePrefs(dir, userId, { autoScroll: false, showChordDiagrams: true, songPreferences: {}, trackOverrides: {}, songTranspose: { "song1": 3, "song2": -2 } });
     const p = await readPrefs(dir, userId);
     expect(p.songTranspose).toEqual({ "song1": 3, "song2": -2 });
   });
@@ -42,18 +59,18 @@ describe("prefs store", () => {
   });
 
   it("writes prefs under users/<userId>/prefs.json", async () => {
-    await writePrefs(dir, userId, { autoScroll: false, songPreferences: {}, trackOverrides: {}, songTranspose: {} });
+    await writePrefs(dir, userId, { autoScroll: false, showChordDiagrams: true, songPreferences: {}, trackOverrides: {}, songTranspose: {} });
     expect(existsSync(join(dir, "users", userId, "prefs.json"))).toBe(true);
   });
 
   it("rejects invalid userId", async () => {
     await expect(readPrefs(dir, "../evil")).rejects.toThrow(/Invalid userId/);
-    await expect(writePrefs(dir, "../evil", { autoScroll: false, songPreferences: {}, trackOverrides: {}, songTranspose: {} })).rejects.toThrow(/Invalid userId/);
+    await expect(writePrefs(dir, "../evil", { autoScroll: false, showChordDiagrams: true, songPreferences: {}, trackOverrides: {}, songTranspose: {} })).rejects.toThrow(/Invalid userId/);
   });
 
   it("two different users store prefs independently", async () => {
-    await writePrefs(dir, "user1", { autoScroll: true, songPreferences: {}, trackOverrides: {}, songTranspose: {} });
-    await writePrefs(dir, "user2", { autoScroll: false, songPreferences: {}, trackOverrides: {}, songTranspose: {} });
+    await writePrefs(dir, "user1", { autoScroll: true, showChordDiagrams: true, songPreferences: {}, trackOverrides: {}, songTranspose: {} });
+    await writePrefs(dir, "user2", { autoScroll: false, showChordDiagrams: true, songPreferences: {}, trackOverrides: {}, songTranspose: {} });
     const p1 = await readPrefs(dir, "user1");
     const p2 = await readPrefs(dir, "user2");
     expect(p1.autoScroll).toBe(true);

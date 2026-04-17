@@ -177,7 +177,7 @@ export default function HomePage() {
         {editing && matchResp?.match ? (
           <Editor id={matchResp.match.id} onClose={() => setEditing(false)} onSaved={() => setEditing(false)} />
         ) : matchResp?.match && content !== null ? (
-          renderEntry(matchResp.match, content, transposeOffset)
+          renderEntry(matchResp.match, content, transposeOffset, prefs?.showChordDiagrams ?? true)
         ) : np.data ? (
           <QuickAddForm track={np.data} onCreated={() => { /* next poll refetches */ }} />
         ) : (
@@ -197,8 +197,8 @@ export default function HomePage() {
   );
 }
 
-function renderEntry(entry: LibraryEntry, content: string, transpose = 0) {
-  if (entry.format === "chordpro") return <ChordProView source={content} transpose={transpose} />;
+function renderEntry(entry: LibraryEntry, content: string, transpose = 0, showChordDiagrams = true) {
+  if (entry.format === "chordpro") return <ChordProView source={content} transpose={transpose} showChordDiagrams={showChordDiagrams} />;
   if (entry.format === "ascii-tab") return <TabView kind="ascii" text={content} />;
   return <TabView kind="guitar-pro" src={`/api/library/raw/${encodeURIComponent(entry.id)}`} />;
 }

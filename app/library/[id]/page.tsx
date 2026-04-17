@@ -6,6 +6,7 @@ import { TabView } from "@/components/TabView";
 import { Editor } from "@/components/Editor";
 import { useTranspose } from "@/hooks/useTranspose";
 import type { LibraryEntry } from "@/lib/library/index";
+import type { Prefs } from "@/lib/prefs/store";
 
 type EntryResponse = { entry: LibraryEntry; content: string };
 
@@ -17,6 +18,7 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [prefs, setPrefs] = useState<Prefs | null>(null);
   const { semitones, up, down, reset } = useTranspose();
 
   const loadEntry = useCallback(() => {
@@ -32,6 +34,7 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
   }, [decoded]);
 
   useEffect(() => { loadEntry(); }, [loadEntry]);
+  useEffect(() => { fetch("/api/prefs").then(r => r.json()).then(setPrefs).catch(() => {}); }, []);
 
   if (loading) return (
     <div className="p-8 text-neutral-400">Loading…</div>
@@ -81,15 +84,15 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
             onSaved={() => { setEditing(false); loadEntry(); }}
           />
         ) : (
-          renderEntry(entry, content, semitones)
+          renderEntry(entry, content, semitones, prefs?.showChordDiagrams ?? true)
         )}
       </div>
     </div>
   );
 }
 
-function renderEntry(entry: LibraryEntry, content: string, semitones: number) {
-  if (entry.format === "chordpro") return <ChordProView source={content} transpose={semitones} />;
+function renderEntry(entry: LibraryEntry, content: string, semitones: number, showChordDiagrams = true) {
+  if (entry.format === "chordpro") return <ChordProView source={content} transpose={semitones} showChordDiagrams={showChordDiagrams} />;
   if (entry.format === "ascii-tab") return <TabView kind="ascii" text={content} />;
   return <TabView kind="guitar-pro" src={`/api/library/raw/${encodeURIComponent(entry.id)}`} />;
 }

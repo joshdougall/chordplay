@@ -46,6 +46,22 @@ export default function SettingsPage() {
     }
   }
 
+  async function toggleChordDiagrams() {
+    if (!prefs) return;
+    const next = { ...prefs, showChordDiagrams: !prefs.showChordDiagrams };
+    setPrefs(next);
+    setSaving(true);
+    try {
+      await fetch("/api/prefs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next)
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="p-6 max-w-lg flex flex-col gap-6">
       <section className="flex flex-col gap-2">
@@ -83,6 +99,19 @@ export default function SettingsPage() {
               type="checkbox"
               checked={prefs?.autoScroll ?? false}
               onChange={toggleAutoScroll}
+              disabled={saving || prefs === null}
+              className="w-4 h-4"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+            <div>
+              <span style={{ color: "var(--ink)" }}>Chord diagrams</span>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-faint)" }}>Show guitar chord diagrams above chord sheets</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={prefs?.showChordDiagrams ?? true}
+              onChange={toggleChordDiagrams}
               disabled={saving || prefs === null}
               className="w-4 h-4"
             />
