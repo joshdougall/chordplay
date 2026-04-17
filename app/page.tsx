@@ -18,6 +18,7 @@ type MatchResponse = { match: LibraryEntry | null; confidence: "exact" | "fuzzy"
 export default function HomePage() {
   const np = useNowPlaying();
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [matchResp, setMatchResp] = useState<MatchResponse | null>(null);
   const [content, setContent] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<Prefs | null>(null);
@@ -31,6 +32,7 @@ export default function HomePage() {
       const res = await fetch("/api/auth/status");
       const body = await res.json().catch(() => ({ authenticated: false }));
       setConnected(!!body.authenticated);
+      if (body.userId) setUserId(body.userId);
     })();
   }, []);
 
@@ -120,6 +122,7 @@ export default function HomePage() {
           </>
         )}
         <Link href="/library" className="text-neutral-500 hover:text-neutral-300 ml-auto">Library</Link>
+        {userId && <span className="text-neutral-600 text-xs">Signed in as {userId}</span>}
         <form action="/api/auth/logout" method="post">
           <button className="text-neutral-500 hover:text-neutral-300" type="submit">Logout</button>
         </form>

@@ -10,10 +10,20 @@ export type Prefs = {
 
 const DEFAULT: Prefs = { autoScroll: false, songPreferences: {}, trackOverrides: {}, songTranspose: {} };
 const FILE = "prefs.json";
+const USER_ID_RE = /^[A-Za-z0-9._-]+$/;
 
-export async function readPrefs(dataDir: string): Promise<Prefs> {
+function validateUserId(userId: string): void {
+  if (!USER_ID_RE.test(userId)) throw new Error(`Invalid userId: ${userId}`);
+}
+
+function userDir(dataDir: string, userId: string): string {
+  return join(dataDir, "users", userId);
+}
+
+export async function readPrefs(dataDir: string, userId: string): Promise<Prefs> {
+  validateUserId(userId);
   try {
-    const raw = await readFile(join(dataDir, FILE), "utf8");
+    const raw = await readFile(join(userDir(dataDir, userId), FILE), "utf8");
     const parsed = JSON.parse(raw);
     return { ...DEFAULT, ...parsed };
   } catch (err) {
@@ -22,9 +32,11 @@ export async function readPrefs(dataDir: string): Promise<Prefs> {
   }
 }
 
-export async function writePrefs(dataDir: string, prefs: Prefs): Promise<void> {
-  await mkdir(dataDir, { recursive: true });
-  const path = join(dataDir, FILE);
+export async function writePrefs(dataDir: string, userId: string, prefs: Prefs): Promise<void> {
+  validateUserId(userId);
+  const dir = userDir(dataDir, userId);
+  await mkdir(dir, { recursive: true });
+  const path = join(dir, FILE);
   const tmp = `${path}.tmp.${process.pid}`;
   await writeFile(tmp, JSON.stringify(prefs, null, 2), "utf8");
   await rename(tmp, path);

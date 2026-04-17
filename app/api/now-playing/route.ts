@@ -1,12 +1,25 @@
 import { NextResponse } from "next/server";
 import { getConfig } from "@/lib/config";
 import { getAccessToken } from "@/lib/auth/spotify";
+import { getSession } from "@/lib/auth/session";
 import { makeNowPlayingCache, type NowPlaying } from "@/lib/spotify/now-playing-cache";
 
-async function fetchFromSpotify(): Promise<NowPlaying> {
+type NowPlayingCacheEntry = ReturnType<typeof makeNowPlayingCache>;
+const caches = new Map<string, NowPlayingCacheEntry>();
+
+function getCacheForUser(userId: string): NowPlayingCacheEntry {
+  let c = caches.get(userId);
+  if (!c) {
+    c = makeNowPlayingCache(() => fetchFromSpotify(userId), 1000);
+    caches.set(userId, c);
+  }
+  return c;
+}
+
+async function fetchFromSpotify(userId: string): Promise<NowPlaying> {
   const cfg = getConfig();
   let token: string;
-  try { token = await getAccessToken(cfg); }
+  try { token = await getAccessToken(cfg, userId); }
   catch { return null; }
 
   const res = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
@@ -28,11 +41,11 @@ async function fetchFromSpotify(): Promise<NowPlaying> {
   };
 }
 
-const cache = makeNowPlayingCache(fetchFromSpotify, 1000);
-
 export async function GET() {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   try {
-    const np = await cache.get();
+    const np = await getCacheForUser(session.userId).get();
     return NextResponse.json(np);
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 502 });

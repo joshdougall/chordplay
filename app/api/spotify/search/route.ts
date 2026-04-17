@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConfig } from "@/lib/config";
 import { getAccessToken } from "@/lib/auth/spotify";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(req: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
+
   const cfg = getConfig();
   const q = new URL(req.url).searchParams.get("q")?.trim();
   if (!q) return NextResponse.json({ tracks: [] });
 
   let token: string;
   try {
-    token = await getAccessToken(cfg);
+    token = await getAccessToken(cfg, session.userId);
   } catch {
     return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   }

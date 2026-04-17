@@ -2,19 +2,26 @@ import { readTokens, writeTokens } from "./tokens";
 import type { Config } from "../config";
 
 type Cached = { accessToken: string; expiresAt: number };
-let cache: Cached | null = null;
+const caches = new Map<string, Cached>();
 let fetcher: typeof fetch = fetch;
 
 export function _setFetcherForTest(f: typeof fetch) { fetcher = f; }
-export function clearAccessTokenCache() { cache = null; }
+export function clearAccessTokenCache(userId?: string) {
+  if (userId !== undefined) {
+    caches.delete(userId);
+  } else {
+    caches.clear();
+  }
+}
 
 const REFRESH_MARGIN_MS = 30_000;
 
-export async function getAccessToken(cfg: Config): Promise<string> {
-  if (cache && cache.expiresAt - Date.now() > REFRESH_MARGIN_MS) {
-    return cache.accessToken;
+export async function getAccessToken(cfg: Config, userId: string): Promise<string> {
+  const cached = caches.get(userId);
+  if (cached && cached.expiresAt - Date.now() > REFRESH_MARGIN_MS) {
+    return cached.accessToken;
   }
-  const tokens = await readTokens(cfg.dataPath, cfg.appSecret);
+  const tokens = await readTokens(cfg.dataPath, cfg.appSecret, userId);
   if (!tokens) throw new Error("not authenticated");
 
   const body = new URLSearchParams({
@@ -32,15 +39,16 @@ export async function getAccessToken(cfg: Config): Promise<string> {
   });
   if (!res.ok) throw new Error(`token refresh failed: ${res.status}`);
   const data = (await res.json()) as { access_token: string; expires_in: number; refresh_token?: string };
-  cache = { accessToken: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 };
+  const entry: Cached = { accessToken: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 };
+  caches.set(userId, entry);
 
   // Spotify sometimes rotates refresh tokens; persist if so.
   if (data.refresh_token && data.refresh_token !== tokens.refreshToken) {
-    await writeTokens(cfg.dataPath, cfg.appSecret, {
+    await writeTokens(cfg.dataPath, cfg.appSecret, userId, {
       ...tokens,
       refreshToken: data.refresh_token,
       issuedAt: Date.now()
     });
   }
-  return cache.accessToken;
+  return entry.accessToken;
 }

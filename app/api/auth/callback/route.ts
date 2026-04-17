@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getConfig } from "@/lib/config";
 import { writeTokens } from "@/lib/auth/tokens";
+import { setSession } from "@/lib/auth/session";
 
 export async function GET(req: NextRequest) {
   const cfg = getConfig();
@@ -50,7 +51,17 @@ export async function GET(req: NextRequest) {
     token_type: string;
   };
 
-  await writeTokens(cfg.dataPath, cfg.appSecret, {
+  // Fetch Spotify user id to establish identity
+  const meRes = await fetch("https://api.spotify.com/v1/me", {
+    headers: { Authorization: `Bearer ${data.access_token}` }
+  });
+  if (!meRes.ok) {
+    return NextResponse.json({ error: "failed to fetch Spotify user identity" }, { status: 502 });
+  }
+  const me = (await meRes.json()) as { id: string };
+  const userId = me.id;
+
+  await writeTokens(cfg.dataPath, cfg.appSecret, userId, {
     refreshToken: data.refresh_token,
     scopes: data.scope.split(" "),
     issuedAt: Date.now()
@@ -58,6 +69,8 @@ export async function GET(req: NextRequest) {
 
   cookieStore.delete("cp_pkce");
   cookieStore.delete("cp_state");
+
+  await setSession({ userId });
 
   return NextResponse.redirect(new URL("/", publicOrigin));
 }
