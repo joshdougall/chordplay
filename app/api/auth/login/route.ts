@@ -5,7 +5,8 @@ import { createVerifier, challengeFor, createState } from "@/lib/auth/pkce";
 
 const SCOPES = [
   "user-read-playback-state",
-  "user-read-currently-playing"
+  "user-read-currently-playing",
+  "user-modify-playback-state"
 ].join(" ");
 
 export async function GET() {
