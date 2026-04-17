@@ -18,11 +18,10 @@ function required(name: string): string {
 
 export function loadConfig(): Config {
   const secretB64 = required("APP_SECRET");
-  const decoded = Buffer.from(secretB64, "base64");
-  if (decoded.length < 32) {
-    throw new ConfigError(`APP_SECRET must decode to at least 32 bytes (got ${decoded.length})`);
+  const buf = Buffer.from(secretB64, "base64");
+  if (buf.length !== 32) {
+    throw new ConfigError(`APP_SECRET must decode to exactly 32 bytes (got ${buf.length})`);
   }
-  const buf = decoded.subarray(0, 32);
   const level = (process.env.LOG_LEVEL ?? "info") as Config["logLevel"];
   return {
     appSecret: buf,

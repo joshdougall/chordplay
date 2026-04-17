@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { loadConfig, ConfigError } from "@/lib/config";
 
 const REQUIRED = {
-  APP_SECRET: "a".repeat(44), // 32 bytes base64 ≈ 44 chars
+  APP_SECRET: Buffer.alloc(32).toString("base64"), // exactly 32 zero bytes, base64 encoded
   SPOTIFY_CLIENT_ID: "cid",
   SPOTIFY_CLIENT_SECRET: "csec",
   SPOTIFY_REDIRECT_URI: "https://chords.dougall.ca/api/auth/callback",
