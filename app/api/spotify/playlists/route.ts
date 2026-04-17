@@ -23,10 +23,10 @@ export async function GET() {
   let url: string | null = "https://api.spotify.com/v1/me/playlists?limit=50";
 
   while (url) {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) break;
-    const data = await res.json();
-    for (const p of (data.items ?? []) as SpotifyPlaylist[]) {
+    const data: { next?: string | null; items?: SpotifyPlaylist[] } = await res.json();
+    for (const p of (data.items ?? [])) {
       playlists.push({
         id: p.id,
         name: p.name,

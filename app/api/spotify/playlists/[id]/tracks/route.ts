@@ -29,10 +29,10 @@ export async function GET(
   let url: string | null = `https://api.spotify.com/v1/playlists/${encodeURIComponent(id)}/tracks?limit=100&fields=next,items(track(id,name,artists,album.images,duration_ms))`;
 
   while (url) {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) break;
-    const data = await res.json();
-    for (const item of (data.items ?? []) as SpotifyTrackItem[]) {
+    const data: { next?: string | null; items?: SpotifyTrackItem[] } = await res.json();
+    for (const item of (data.items ?? [])) {
       const t = item.track;
       if (!t || !t.id) continue;
       tracks.push({
