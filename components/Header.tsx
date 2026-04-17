@@ -84,6 +84,7 @@ export function Header() {
       <Link href="/" className="flex items-center gap-2" style={{ color: "var(--accent)" }}>
         <ChordGlyph size={22} />
         <span className="brand-title text-lg tracking-tight" style={{ color: "var(--ink)" }}>Chordplay</span>
+        <span className="text-xs" style={{ color: "var(--ink-faint)" }}>{process.env.NEXT_PUBLIC_APP_VERSION}</span>
       </Link>
       {authed && (
         <nav className="flex gap-1 text-sm">

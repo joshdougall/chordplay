@@ -120,6 +120,16 @@ export default function SettingsPage() {
       </section>
 
       <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>About</h2>
+        <div className="rounded p-4 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center justify-between">
+            <span style={{ color: "var(--ink-muted)" }}>Version</span>
+            <span className="font-mono" style={{ color: "var(--ink)" }}>{process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown"}</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Spotify Permissions</h2>
         <div className="rounded p-4 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
           <p style={{ color: "var(--ink-muted)" }} className="mb-3">
