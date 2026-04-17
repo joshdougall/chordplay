@@ -5,11 +5,12 @@ import { writeTokens } from "@/lib/auth/tokens";
 
 export async function GET(req: NextRequest) {
   const cfg = getConfig();
+  const publicOrigin = new URL(cfg.spotifyRedirectUri).origin;
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const err = url.searchParams.get("error");
-  if (err) return NextResponse.redirect(new URL("/?error=" + encodeURIComponent(err), req.url));
+  if (err) return NextResponse.redirect(new URL("/?error=" + encodeURIComponent(err), publicOrigin));
   if (!code || !state) return NextResponse.json({ error: "missing code or state" }, { status: 400 });
 
   const cookieStore = await cookies();
@@ -58,5 +59,5 @@ export async function GET(req: NextRequest) {
   cookieStore.delete("cp_pkce");
   cookieStore.delete("cp_state");
 
-  return NextResponse.redirect(new URL("/", req.url));
+  return NextResponse.redirect(new URL("/", publicOrigin));
 }
