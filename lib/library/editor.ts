@@ -1,4 +1,4 @@
-import { mkdir, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { Format } from "./format";
 
@@ -31,6 +31,25 @@ export type CreateInput = {
   spotifyTrackId?: string;
   folder?: string;
 };
+
+export async function setSpotifyTrackId(root: string, id: string, trackId: string): Promise<void> {
+  const full = safePath(root, id);
+  const current = await readFile(full, "utf8");
+  const directiveRegex = /\{\s*spotify_track_id\s*:\s*[^}]+\}/i;
+  let updated: string;
+  if (directiveRegex.test(current)) {
+    updated = current.replace(directiveRegex, `{spotify_track_id: ${trackId}}`);
+  } else {
+    const artistMatch = current.match(/\{\s*artist\s*:[^}]+\}\s*\n?/i);
+    if (artistMatch) {
+      const idx = (artistMatch.index ?? 0) + artistMatch[0].length;
+      updated = current.slice(0, idx) + `{spotify_track_id: ${trackId}}\n` + current.slice(idx);
+    } else {
+      updated = `{spotify_track_id: ${trackId}}\n` + current;
+    }
+  }
+  await writeEntry(root, id, updated);
+}
 
 export async function createEntry(root: string, input: CreateInput): Promise<string> {
   const folder = input.folder ?? "inbox";

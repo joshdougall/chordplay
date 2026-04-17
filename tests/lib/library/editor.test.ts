@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { writeEntry, createEntry, safePath } from "@/lib/library/editor";
+import { writeEntry, createEntry, safePath, setSpotifyTrackId } from "@/lib/library/editor";
 
 describe("editor", () => {
   let dir: string;
@@ -31,5 +31,22 @@ describe("editor", () => {
     expect(text).toContain("{artist: Test Artist}");
     expect(text).toContain("{spotify_track_id: trk-123}");
     expect(text).toContain("[C]hello");
+  });
+
+  it("setSpotifyTrackId inserts directive when missing", async () => {
+    const content = "{title: My Song}\n{artist: Some Artist}\n\n[C]lyrics\n";
+    writeFileSync(join(dir, "my-song.pro"), content);
+    await setSpotifyTrackId(dir, "my-song.pro", "trk-new");
+    const text = readFileSync(join(dir, "my-song.pro"), "utf8");
+    expect(text).toContain("{spotify_track_id: trk-new}");
+  });
+
+  it("setSpotifyTrackId replaces existing directive", async () => {
+    const content = "{title: My Song}\n{artist: Some Artist}\n{spotify_track_id: trk-old}\n\n[C]lyrics\n";
+    writeFileSync(join(dir, "my-song2.pro"), content);
+    await setSpotifyTrackId(dir, "my-song2.pro", "trk-new");
+    const text = readFileSync(join(dir, "my-song2.pro"), "utf8");
+    expect(text).toContain("{spotify_track_id: trk-new}");
+    expect(text).not.toContain("trk-old");
   });
 });
