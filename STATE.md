@@ -1,32 +1,62 @@
 # State: Chordplay
 
 ## Current status
-**v0.1.0 LIVE** at https://chords.dougall.ca (rpi5 homelab). Health check passes.
+**v0.5.0 in-flight** (build running). Live on prod: v0.4.0 at https://chords.dougall.ca. Health 200.
+
+## Versions shipped
+- v0.1.0 — initial deployment (29-task plan complete)
+- v0.1.1 — retag (no code change)
+- v0.2.0 — Spotify callback redirect-origin fix (no more `db95b0b5b8ce:3000` leaks)
+- v0.2.1 — multi-source external chords (chordie + e-chords; e-chords blocked by Cloudflare but provider chain still valid)
+- v0.3.0 — multi-user: per-user tokens + prefs, shared library, encrypted session cookie
+- v0.4.0 — app shell with tabbed nav, Add page, Settings page
+- v0.5.0 — warm songbook branding, album art grid, keyboard shortcuts + Spotify playback control (pending build/deploy)
 
 ## Deployment
-- Image: `forgejo.dougall.ca/joshdougall/chordplay:latest` (built by Forgejo Actions, ARM64)
-- Host: rpi5 (192.168.30.15), via Traefik, LAN-only DNS
-- Config: `homelab-infra/ansible/roles/chords/`, playbook `playbooks/rpi5-chords.yml`
-- Library bind mount: `/home/automation/services/chords/library` (empty on prod)
-- Data bind mount: `/home/automation/services/chords/data` (holds encrypted Spotify tokens, prefs)
-- Spotify app redirect URIs: `http://127.0.0.1:3000/api/auth/callback` (local), `https://chords.dougall.ca/api/auth/callback` (prod)
+- Image: `forgejo.dougall.ca/joshdougall/chordplay:latest` (Forgejo Actions builds on every main push + tag push, ARM64)
+- Host: rpi5 (192.168.30.15), Ansible role `homelab-infra/ansible/roles/chords/`, playbook `playbooks/rpi5-chords.yml`
+- Traefik route: `chords.dougall.ca`, LAN-only DNS
+- Build strategy: main push → `:main` + `:<sha>`; tag v* → `:<semver>` + `:latest` + `:<sha>`; registry-based build cache
+- Ansible role pulls image on every run (`pull: always`)
 
-## Build strategy (chose C from options)
-- Push to `main` → image tags `:main` + `:<short-sha>`
-- Push tag `v*` → image tags `:<semver>` + `:latest` + `:<short-sha>`
-- Cache: registry-based (`:buildcache` on the same image)
-- Runner: rpi5 Forgejo runner with DinD + `DOCKER_API_VERSION=1.41` (host Docker is 20.10)
+## Multi-user model
+- Shared library (everyone sees same songs)
+- Per-user tokens under `/data/users/<spotifyId>/tokens.json`
+- Per-user prefs under `/data/users/<spotifyId>/prefs.json`
+- Session cookie `cp_session` (AES-GCM encrypted using APP_SECRET)
+- Josh is signed in; wife can sign in once her Spotify email is added to dev dashboard user allowlist
 
-## Known gaps (from spec + v1 limitations)
-- Connection detection uses `/api/auth/status`; added post-v1 because `/api/now-playing` silently returns `null` when unauthenticated.
-- `/api/library/raw/:id` referenced in main page for Guitar Pro files but not implemented; only relevant if `.gp` files are dropped in.
-- `stopWatcher` stored in singleton but never invoked on shutdown (no teardown handler).
-- ESLint flat-config warning during `next lint` (harmless; `.eslintrc.json` vs ESLint 9 flat).
+## External chord sources
+- **chordie.com** — works (plain fetch)
+- **e-chords.com** — Cloudflare blocked; provider exists but returns null on real fetches
+- **Ultimate Guitar** — Cloudflare blocked; no implementation
+- Provider registry in `lib/external/chords.ts` tries in order, caches hits AND misses
 
-## Next up
-1. **Transpose buttons** (A) — ChordSheetJS `.transpose(n)`, UI `+1/-1` buttons, persist per-song in prefs.
-2. **Library browser + search** (B) — `/library` page, `/api/library/all` route, Spotify search endpoint.
-3. **External fallback** (C) — Ultimate Guitar scrape when match is null, offer as quick-add prefill.
+## Spotify scopes
+- `user-read-playback-state` — now-playing
+- `user-read-currently-playing` — same
+- `user-modify-playback-state` — NEW in v0.5.0 for keyboard play/pause/skip
+  - Existing users need to "re-auth" (Settings page has a button) to get the new scope
+
+## Keyboard shortcuts
+- Space / k — play/pause
+- j / ← — previous track
+- l / → — next track
+- t — transpose up
+- Shift+T — transpose down
+- 0 — reset transpose
+- a — toggle auto-scroll
+- e — edit current sheet
+- / — focus filter input on /library
+- ? — shortcuts help overlay
+
+## Known gaps / follow-ups
+- ESLint flat-config warning (harmless, pre-existing)
+- `stopWatcher` stored in singleton, never invoked on shutdown (no teardown hook)
+- e-chords provider fully coded but blocked by Cloudflare; keep for future (if Playwright sidecar etc.)
+- No batch playlist download yet (talked about it; not built)
+- No transpose default setting; it's per-song only
+- `/api/library/raw/:id` referenced for Guitar Pro files but not implemented; only matters if user drops .gp files in
 
 ## Docs
 - Spec: `docs/superpowers/specs/2026-04-16-chordplay-design.md`
