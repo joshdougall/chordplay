@@ -27,12 +27,9 @@ export default function HomePage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/now-playing");
-      if (res.status === 502) {
-        const body = await res.json().catch(() => ({}));
-        if (String(body.error).includes("not authenticated")) { setConnected(false); return; }
-      }
-      setConnected(true);
+      const res = await fetch("/api/auth/status");
+      const body = await res.json().catch(() => ({ authenticated: false }));
+      setConnected(!!body.authenticated);
     })();
   }, []);
 
