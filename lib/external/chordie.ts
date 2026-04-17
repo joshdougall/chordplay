@@ -3,19 +3,13 @@
 // without JS challenges. The chord pages return content already in a
 // ChordPro-compatible inline format.
 
+import type { ExternalChords, ChordProvider } from "./provider";
+
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-export type ExternalChords = {
-  source: "chordie";
-  sourceUrl: string;
-  content: string; // ChordPro-formatted
-  title: string;
-  artist: string;
-};
-
-// Simple in-process cache keyed by "artist|title" (lowercased)
-const cache = new Map<string, ExternalChords | null>();
+export const CHORDIE_ID = "chordie";
+export const CHORDIE_NAME = "Chordie";
 
 // Exported so it can be unit-tested in isolation.
 export function chordieLineToChordPro(line: string): string {
@@ -167,25 +161,16 @@ export async function fetchChordieChords(
   artist: string,
   title: string
 ): Promise<ExternalChords | null> {
-  const key = `${artist.toLowerCase()}|${title.toLowerCase()}`;
-  if (cache.has(key)) return cache.get(key)!;
-
   try {
     // 1. Search
     const q = encodeURIComponent(`${artist} ${title}`);
     const searchUrl = `https://www.chordie.com/results.php?q=${q}&from=0&size=10&mode=song`;
     const searchHtml = await fetchText(searchUrl);
-    if (!searchHtml) {
-      cache.set(key, null);
-      return null;
-    }
+    if (!searchHtml) return null;
 
     // 2. Pick best result
     const results = parseSearchResults(searchHtml);
-    if (results.length === 0) {
-      cache.set(key, null);
-      return null;
-    }
+    if (results.length === 0) return null;
 
     let best = results[0];
     let bestScore = scoreTitleArtist(best, artist, title);
@@ -197,38 +182,33 @@ export async function fetchChordieChords(
       }
     }
     // Require at least some match (title word hit)
-    if (bestScore < 2) {
-      cache.set(key, null);
-      return null;
-    }
+    if (bestScore < 2) return null;
 
     // 3. Fetch the tab page
     const tabUrl = `https://www.chordie.com${best.url}`;
     const tabHtml = await fetchText(tabUrl);
-    if (!tabHtml) {
-      cache.set(key, null);
-      return null;
-    }
+    if (!tabHtml) return null;
 
     // 4. Parse and convert
     const lines = parseChordieTab(tabHtml);
-    if (lines.length === 0) {
-      cache.set(key, null);
-      return null;
-    }
+    if (lines.length === 0) return null;
 
     const content = buildChordPro(lines, best.title, best.artist);
-    const result: ExternalChords = {
-      source: "chordie",
+    return {
+      source: CHORDIE_ID,
+      sourceName: CHORDIE_NAME,
       sourceUrl: tabUrl,
       content,
       title: best.title,
       artist: best.artist,
     };
-    cache.set(key, result);
-    return result;
   } catch {
-    cache.set(key, null);
     return null;
   }
 }
+
+export const ChordieProvider: ChordProvider = {
+  id: CHORDIE_ID,
+  name: CHORDIE_NAME,
+  fetch: fetchChordieChords,
+};

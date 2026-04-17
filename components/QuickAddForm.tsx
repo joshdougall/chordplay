@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { ExternalChords } from "@/lib/external/chordie";
+import type { ExternalChords } from "@/lib/external/provider";
 
 export type TrackStub = {
   trackId: string;
@@ -76,7 +76,7 @@ export function QuickAddForm({ track, onCreated }: { track: TrackStub; onCreated
         />
       </label>
       {fetchingChords && (
-        <span className="text-sm text-neutral-400">Fetching chord suggestions from Chordie…</span>
+        <span className="text-sm text-neutral-400">Fetching chord suggestions…</span>
       )}
       {!fetchingChords && suggestedChords && (
         <div className="flex items-center gap-3 text-sm">
@@ -85,7 +85,7 @@ export function QuickAddForm({ track, onCreated }: { track: TrackStub; onCreated
             onClick={() => setContent(suggestedChords.content)}
             className="px-3 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-100"
           >
-            Use suggested chords from Chordie
+            Use suggested chords from {suggestedChords.sourceName}
           </button>
           <a
             href={suggestedChords.sourceUrl}
