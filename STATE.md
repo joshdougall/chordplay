@@ -1,42 +1,51 @@
 # State: Chordplay
 
 ## Current status
-**v0.5.0 in-flight** (build running). Live on prod: v0.4.0 at https://chords.dougall.ca. Health 200.
+**v0.6.1 batch commits in worktree** (agent-a73df64c). Live on prod: v0.6.1 at https://chords.dougall.ca.
+
+## Re-auth required
+New Spotify scopes added in this batch:
+- `user-read-recently-played` — last-played fallback
+- `playlist-read-private` — playlist browser
+- `playlist-read-collaborative` — shared playlists
+Users must visit Settings → "Logout & reconnect" to grant new scopes.
 
 ## Versions shipped
-- v0.1.0 — initial deployment (29-task plan complete)
-- v0.1.1 — retag (no code change)
-- v0.2.0 — Spotify callback redirect-origin fix (no more `db95b0b5b8ce:3000` leaks)
-- v0.2.1 — multi-source external chords (chordie + e-chords; e-chords blocked by Cloudflare but provider chain still valid)
-- v0.3.0 — multi-user: per-user tokens + prefs, shared library, encrypted session cookie
+- v0.1.0 — initial deployment
+- v0.2.0 — Spotify callback redirect-origin fix
+- v0.2.1 — multi-source external chords (chordie + e-chords)
+- v0.3.0 — multi-user: per-user tokens + prefs, shared library
 - v0.4.0 — app shell with tabbed nav, Add page, Settings page
-- v0.5.0 — warm songbook branding, album art grid, keyboard shortcuts + Spotify playback control (pending build/deploy)
+- v0.5.0 — warm songbook branding, keyboard shortcuts, Spotify playback control
+- v0.6.1 — (committed to worktree, not yet merged/tagged) batch feature work
+
+## What was done in this agent session (worktree agent-a73df64c)
+1. `fix(add): sync internal track state when initialTrack prop changes`
+2. `feat(matcher): weighted artist+title fuzzy, 0.90 threshold, expose score + wrong-match flow`
+3. `feat(now-playing): fall back to last-played when Spotify idle`
+4. `feat(library): persist spotify_track_id to file on match detection`
+5. `feat(ui): show app version in header and settings`
+6. `feat(playlists): spotify playlist browser with batch chord import`
+7. `feat(library): multi-version per song with picker and duplicate action`
+8. `fix(types): add type annotations to playlist routes, add preferredVersion to prefs test fixtures`
 
 ## Deployment
-- Image: `forgejo.dougall.ca/joshdougall/chordplay:latest` (Forgejo Actions builds on every main push + tag push, ARM64)
-- Host: rpi5 (192.168.30.15), Ansible role `homelab-infra/ansible/roles/chords/`, playbook `playbooks/rpi5-chords.yml`
+- Image: `forgejo.dougall.ca/joshdougall/chordplay:latest`
+- Host: rpi5 (192.168.30.15), Ansible role `homelab-infra/ansible/roles/chords/`
 - Traefik route: `chords.dougall.ca`, LAN-only DNS
-- Build strategy: main push → `:main` + `:<sha>`; tag v* → `:<semver>` + `:latest` + `:<sha>`; registry-based build cache
-- Ansible role pulls image on every run (`pull: always`)
-
-## Multi-user model
-- Shared library (everyone sees same songs)
-- Per-user tokens under `/data/users/<spotifyId>/tokens.json`
-- Per-user prefs under `/data/users/<spotifyId>/prefs.json`
-- Session cookie `cp_session` (AES-GCM encrypted using APP_SECRET)
-- Josh is signed in; wife can sign in once her Spotify email is added to dev dashboard user allowlist
 
 ## External chord sources
 - **chordie.com** — works (plain fetch)
-- **e-chords.com** — Cloudflare blocked; provider exists but returns null on real fetches
-- **Ultimate Guitar** — Cloudflare blocked; no implementation
+- **e-chords.com** — Cloudflare blocked
 - Provider registry in `lib/external/chords.ts` tries in order, caches hits AND misses
 
-## Spotify scopes
-- `user-read-playback-state` — now-playing
-- `user-read-currently-playing` — same
-- `user-modify-playback-state` — NEW in v0.5.0 for keyboard play/pause/skip
-  - Existing users need to "re-auth" (Settings page has a button) to get the new scope
+## Spotify scopes (full list after this batch)
+- `user-read-playback-state`
+- `user-read-currently-playing`
+- `user-modify-playback-state`
+- `user-read-recently-played` (NEW)
+- `playlist-read-private` (NEW)
+- `playlist-read-collaborative` (NEW)
 
 ## Keyboard shortcuts
 - Space / k — play/pause
@@ -47,41 +56,14 @@
 - 0 — reset transpose
 - a — toggle auto-scroll
 - e — edit current sheet
-- / — focus filter input on /library
 - ? — shortcuts help overlay
 
-## Pending Ansible changes (homelab-infra work)
-
-For the report-issue feature to work in production, apply these changes in `homelab-infra`:
-
-1. **`ansible/group_vars/all/vault.yml`** — add:
-   ```
-   vault_chords_forgejo_issue_token: "<Forgejo PAT with write:issue scope>"
-   ```
-
-2. **`ansible/roles/chords/defaults/main.yml`** — add:
-   ```yaml
-   chords_forgejo_issue_token: "{{ vault_chords_forgejo_issue_token }}"
-   ```
-
-3. **`ansible/roles/chords/templates/docker-compose.yml.j2`** — add to env block:
-   ```
-   FORGEJO_BASE_URL: "https://forgejo.dougall.ca"
-   FORGEJO_ISSUE_REPO: "joshdougall/chordplay"
-   FORGEJO_ISSUE_TOKEN: "{{ chords_forgejo_issue_token }}"
-   ```
-
-Until these are applied, `FORGEJO_ISSUE_TOKEN` will be absent and the Report Issue button will be hidden automatically (API returns 503).
-
 ## Known gaps / follow-ups
+- Build in worktree fails at "Collecting page data" due to Next.js relative path issue in git worktrees (not caused by code changes; builds fine in main repo)
 - ESLint flat-config warning (harmless, pre-existing)
-- `stopWatcher` stored in singleton, never invoked on shutdown (no teardown hook)
-- e-chords provider fully coded but blocked by Cloudflare; keep for future (if Playwright sidecar etc.)
-- No batch playlist download yet (talked about it; not built)
-- No transpose default setting; it's per-song only
-- `/api/library/raw/:id` referenced for Guitar Pro files but not implemented; only matters if user drops .gp files in
-- Chord diagram hover popovers on inline `.chord` spans — palette-only for now, hover is a follow-up
+- e-chords provider blocked by Cloudflare
+- `/api/library/raw/:id` not implemented (Guitar Pro files only)
+- Playlist import only does Chordie sequential requests; polite but slow for big playlists
 
 ## Docs
 - Spec: `docs/superpowers/specs/2026-04-16-chordplay-design.md`
-- Plan: `docs/superpowers/plans/2026-04-16-chordplay.md`
