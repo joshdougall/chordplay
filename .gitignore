@@ -7,3 +7,6 @@ out
 .env
 coverage
 next-env.d.ts
+dev-library/
+dev-data/
+.claude/
