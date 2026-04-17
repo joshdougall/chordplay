@@ -10,6 +10,7 @@ type Tab = { href: string; label: string; match: (path: string) => boolean };
 const TABS: Tab[] = [
   { href: "/", label: "Now Playing", match: p => p === "/" },
   { href: "/library", label: "Library", match: p => p === "/library" || p.startsWith("/library/") },
+  { href: "/playlists", label: "Playlists", match: p => p === "/playlists" || p.startsWith("/playlists/") },
   { href: "/add", label: "Add", match: p => p === "/add" },
   { href: "/settings", label: "Settings", match: p => p === "/settings" }
 ];
