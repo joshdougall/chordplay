@@ -33,6 +33,13 @@ const inputFocusClass = "focus:outline-none focus:ring-1 focus:ring-[var(--accen
 export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
   const [track, setTrack] = useState<TrackStub | undefined>(initialTrack);
 
+  useEffect(() => {
+    if (initialTrack && initialTrack.trackId !== track?.trackId) {
+      setTrack(initialTrack);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTrack?.trackId]);
+
   const [searchInput, setSearchInput] = useState("");
   const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([]);
   const [searching, setSearching] = useState(false);
