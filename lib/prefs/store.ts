@@ -5,9 +5,10 @@ export type Prefs = {
   autoScroll: boolean;
   songPreferences: Record<string, "chords" | "tab">;
   trackOverrides: Record<string, string>;
+  songTranspose: Record<string, number>;
 };
 
-const DEFAULT: Prefs = { autoScroll: false, songPreferences: {}, trackOverrides: {} };
+const DEFAULT: Prefs = { autoScroll: false, songPreferences: {}, trackOverrides: {}, songTranspose: {} };
 const FILE = "prefs.json";
 
 export async function readPrefs(dataDir: string): Promise<Prefs> {

@@ -57,9 +57,19 @@ export default function HomePage() {
     })();
   }, [trackId, np.data]);
 
+  const currentId = matchResp?.match?.id;
+  const transposeOffset: number = (currentId ? (prefs?.songTranspose?.[currentId] ?? 0) : 0);
+
   async function toggleAutoScroll() {
     if (!prefs) return;
     const next = { ...prefs, autoScroll: !prefs.autoScroll };
+    setPrefs(next);
+    await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
+  }
+
+  async function setTranspose(n: number) {
+    if (!prefs || !currentId) return;
+    const next = { ...prefs, songTranspose: { ...prefs.songTranspose, [currentId]: n } };
     setPrefs(next);
     await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
   }
@@ -75,6 +85,29 @@ export default function HomePage() {
           <input type="checkbox" checked={prefs?.autoScroll ?? false} onChange={toggleAutoScroll} />
           Auto-scroll
         </label>
+        {matchResp?.match && matchResp.match.format === "chordpro" && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setTranspose(transposeOffset - 1)}
+              className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700"
+              aria-label="Transpose down"
+            >−</button>
+            <span className="w-8 text-center tabular-nums">
+              {transposeOffset > 0 ? `+${transposeOffset}` : transposeOffset === 0 ? "±0" : `${transposeOffset}`}
+            </span>
+            <button
+              onClick={() => setTranspose(transposeOffset + 1)}
+              className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700"
+              aria-label="Transpose up"
+            >+</button>
+            {transposeOffset !== 0 && (
+              <button
+                onClick={() => setTranspose(0)}
+                className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-400"
+              >Reset</button>
+            )}
+          </div>
+        )}
         {matchResp?.match && (
           <>
             <span className="text-neutral-500">
@@ -93,7 +126,7 @@ export default function HomePage() {
         {editing && matchResp?.match ? (
           <Editor id={matchResp.match.id} onClose={() => setEditing(false)} onSaved={() => setEditing(false)} />
         ) : matchResp?.match && content !== null ? (
-          renderEntry(matchResp.match, content)
+          renderEntry(matchResp.match, content, transposeOffset)
         ) : np.data ? (
           <QuickAddForm track={np.data} onCreated={() => { /* next poll refetches */ }} />
         ) : (
@@ -112,8 +145,8 @@ export default function HomePage() {
   );
 }
 
-function renderEntry(entry: LibraryEntry, content: string) {
-  if (entry.format === "chordpro") return <ChordProView source={content} />;
+function renderEntry(entry: LibraryEntry, content: string, transpose = 0) {
+  if (entry.format === "chordpro") return <ChordProView source={content} transpose={transpose} />;
   if (entry.format === "ascii-tab") return <TabView kind="ascii" text={content} />;
   return <TabView kind="guitar-pro" src={`/api/library/raw/${encodeURIComponent(entry.id)}`} />;
 }

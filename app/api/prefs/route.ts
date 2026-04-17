@@ -15,7 +15,8 @@ export async function PUT(req: NextRequest) {
   const merged: Prefs = {
     autoScroll: body.autoScroll ?? current.autoScroll,
     songPreferences: body.songPreferences ?? current.songPreferences,
-    trackOverrides: body.trackOverrides ?? current.trackOverrides
+    trackOverrides: body.trackOverrides ?? current.trackOverrides,
+    songTranspose: body.songTranspose ?? current.songTranspose,
   };
   await writePrefs(cfg.dataPath, merged);
   return NextResponse.json(merged);
