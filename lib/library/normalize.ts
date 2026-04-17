@@ -2,6 +2,8 @@ export function normalizeKey(artist: string, title: string): string {
   return `${clean(artist)}|${clean(title)}`;
 }
 
+export function normalizeField(s: string): string { return clean(s); }
+
 function clean(s: string): string {
   return s
     .toLowerCase()

@@ -14,6 +14,8 @@ describe("matcher", () => {
       "{title: Hey Jude}\n{artist: The Beatles}\n{spotify_track_id: trk-hj}");
     writeFileSync(join(dir, "creep.pro"),
       "{title: Creep}\n{artist: Radiohead}");
+    writeFileSync(join(dir, "my-favorite-place.pro"),
+      "{title: My Favorite Place}\n{artist: Stephen Kellogg}");
     idx = new LibraryIndex(dir);
     await idx.rescan();
   });
@@ -36,6 +38,14 @@ describe("matcher", () => {
     expect(r.confidence).toBe("fuzzy");
   });
 
+  it("score returned on fuzzy match", () => {
+    const r = match(idx, { trackId: "unknown", title: "Creeep", artists: ["Radiohead"] }, {});
+    expect(r.confidence).toBe("fuzzy");
+    expect(typeof r.score).toBe("number");
+    expect(r.score).toBeGreaterThan(0.85);
+    expect(r.score).toBeLessThanOrEqual(1);
+  });
+
   it("no match when confidence too low", () => {
     const r = match(idx, { trackId: "unknown", title: "xyzzy", artists: ["nobody"] }, {});
     expect(r.match).toBeNull();
@@ -49,5 +59,10 @@ describe("matcher", () => {
     );
     expect(r.match?.title).toBe("Creep");
     expect(r.confidence).toBe("exact");
+  });
+
+  it("false-match scenario: unrelated title and artist does not match My Favorite Place", () => {
+    const r = match(idx, { trackId: "unknown", title: "favorite country song", artists: ["some artist"] }, {});
+    expect(r.match).toBeNull();
   });
 });
