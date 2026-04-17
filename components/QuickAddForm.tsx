@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { NowPlaying } from "@/lib/spotify/now-playing-cache";
 
-export function QuickAddForm({ track, onCreated }: { track: NonNullable<NowPlaying>; onCreated: (id: string) => void }) {
+export type TrackStub = {
+  trackId: string;
+  title: string;
+  artists: string[];
+};
+
+export function QuickAddForm({ track, onCreated }: { track: TrackStub; onCreated: (id: string) => void }) {
   const [title, setTitle] = useState(track.title);
   const [artist, setArtist] = useState(track.artists.join(", "));
   const [format, setFormat] = useState<"chordpro" | "ascii-tab">("chordpro");

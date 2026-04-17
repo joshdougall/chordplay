@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useNowPlaying } from "@/hooks/useNowPlaying";
 import { NowPlayingHeader } from "@/components/NowPlayingHeader";
 import { ConnectSpotify } from "@/components/ConnectSpotify";
@@ -118,7 +119,8 @@ export default function HomePage() {
             </button>
           </>
         )}
-        <form action="/api/auth/logout" method="post" className="ml-auto">
+        <Link href="/library" className="text-neutral-500 hover:text-neutral-300 ml-auto">Library</Link>
+        <form action="/api/auth/logout" method="post">
           <button className="text-neutral-500 hover:text-neutral-300" type="submit">Logout</button>
         </form>
       </div>
