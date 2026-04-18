@@ -1,9 +1,10 @@
 // External chord provider via Ultimate Guitar (tabs.ultimate-guitar.com)
-// Uses Firecrawl to bypass Cloudflare. Flow:
+// Uses FlareSolverr (preferred) or Firecrawl (fallback) to bypass Cloudflare. Flow:
 //   1. Scrape UG search page, parse js-store JSON for the first Chords result
 //   2. Scrape the tab page, parse js-store JSON for wiki_tab.content
 //   3. Convert [ch]CHORD[/ch] → [CHORD], strip [tab]/[/tab] markers
 
+import { flaresolverrFetch } from "./flaresolverr";
 import { firecrawlScrape } from "./firecrawl";
 import type { ChordProvider, ExternalChords } from "./provider";
 
@@ -49,6 +50,15 @@ export function parseUgStore(html: string): unknown {
   }
 }
 
+// Scrape a URL to HTML. Tries flaresolverr first (free, self-hosted),
+// falls back to firecrawl if configured.
+async function scrape(url: string, waitFor = 1500): Promise<string | null> {
+  const fs = await flaresolverrFetch(url);
+  if (fs) return fs;
+  const fc = await firecrawlScrape({ url, formats: ["html"], waitFor });
+  return fc?.html ?? null;
+}
+
 export async function fetchUltimateGuitarChords(
   artist: string,
   title: string
@@ -56,14 +66,10 @@ export async function fetchUltimateGuitarChords(
   const query = encodeURIComponent(`${artist} ${title}`);
   const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${query}`;
 
-  const searchPage = await firecrawlScrape({
-    url: searchUrl,
-    formats: ["html"],
-    waitFor: 1500,
-  });
-  if (!searchPage?.html) return null;
+  const searchHtml = await scrape(searchUrl);
+  if (!searchHtml) return null;
 
-  const searchData = parseUgStore(searchPage.html);
+  const searchData = parseUgStore(searchHtml);
   if (!searchData) return null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,14 +87,10 @@ export async function fetchUltimateGuitarChords(
   const picked = chordResults[0];
 
   // Scrape the tab page
-  const tabPage = await firecrawlScrape({
-    url: picked.tab_url,
-    formats: ["html"],
-    waitFor: 1500,
-  });
-  if (!tabPage?.html) return null;
+  const tabHtml = await scrape(picked.tab_url);
+  if (!tabHtml) return null;
 
-  const tabData = parseUgStore(tabPage.html);
+  const tabData = parseUgStore(tabHtml);
   if (!tabData) return null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

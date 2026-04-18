@@ -1,12 +1,13 @@
 // External chord provider via Chordify (chordify.net)
-// Uses Firecrawl to bypass Cloudflare. Flow:
+// Uses FlareSolverr (preferred) or Firecrawl (fallback) to bypass Cloudflare. Flow:
 //   1. Scrape search page https://chordify.net/search/<query>
-//   2. Extract first song link (/chords/...) from markdown
-//   3. Scrape the song page, extract chords from rendered markdown
+//   2. Extract first song link (/chords/...) from the response
+//   3. Scrape the song page, extract chords from rendered content
 //
 // Chordify is JS-heavy; waitFor gives the app time to render.
 // The result is best-effort — if no recognisable chord content is found, returns null.
 
+import { flaresolverrFetch } from "./flaresolverr";
 import { firecrawlScrape } from "./firecrawl";
 import type { ChordProvider, ExternalChords } from "./provider";
 
@@ -21,13 +22,13 @@ export function toChordifySlug(s: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-// Parse the first /chords/... link from firecrawl markdown output.
+// Parse the first /chords/... link from scrape output (markdown or HTML).
 // Chordify links look like: /chords/some-artist-some-title-HASH
-export function extractFirstChordifyLink(markdown: string): string | null {
+export function extractFirstChordifyLink(content: string): string | null {
   // Match markdown links: [text](/chords/...)
   const mdLinkRe = /\[([^\]]+)\]\((\/chords\/[^\s)]+)\)/g;
   let m: RegExpExecArray | null;
-  while ((m = mdLinkRe.exec(markdown)) !== null) {
+  while ((m = mdLinkRe.exec(content)) !== null) {
     const path = m[2];
     // The last path segment is the song slug — require it to be more than
     // 2 characters to skip single-letter category pages like /chords/c.
@@ -36,9 +37,9 @@ export function extractFirstChordifyLink(markdown: string): string | null {
       return `https://chordify.net${path}`;
     }
   }
-  // Also try bare URL patterns in case firecrawl renders links differently
+  // Also try bare URL patterns — works for both markdown and raw HTML
   const bareLinkRe = /https:\/\/chordify\.net(\/chords\/[^\s)>\]"]+)/g;
-  while ((m = bareLinkRe.exec(markdown)) !== null) {
+  while ((m = bareLinkRe.exec(content)) !== null) {
     return `https://chordify.net${m[1]}`;
   }
   return null;
@@ -107,6 +108,24 @@ export function extractChordifyContent(markdown: string, title: string, artist: 
   return header + body;
 }
 
+// Scrape a URL, trying flaresolverr first then firecrawl (markdown format).
+// Returns HTML from flaresolverr, or markdown from firecrawl, or null.
+async function scrape(
+  url: string,
+  waitFor = 3000
+): Promise<{ content: string; isHtml: boolean } | null> {
+  const fs = await flaresolverrFetch(url);
+  if (fs) return { content: fs, isHtml: true };
+  const fc = await firecrawlScrape({
+    url,
+    formats: ["markdown"],
+    onlyMainContent: true,
+    waitFor,
+  });
+  if (fc?.markdown) return { content: fc.markdown, isHtml: false };
+  return null;
+}
+
 export async function fetchChordifyChords(
   artist: string,
   title: string
@@ -115,34 +134,40 @@ export async function fetchChordifyChords(
   const query = toChordifySlug(`${artist} ${title}`);
   const searchUrl = `https://chordify.net/search/${encodeURIComponent(query)}`;
 
-  const searchPage = await firecrawlScrape({
-    url: searchUrl,
-    formats: ["markdown"],
-    onlyMainContent: true,
-    waitFor: 3000,
-  });
-  if (!searchPage?.markdown) return null;
+  const searchResult = await scrape(searchUrl);
+  if (!searchResult) return null;
 
-  const songUrl = extractFirstChordifyLink(searchPage.markdown);
+  const songUrl = extractFirstChordifyLink(searchResult.content);
   if (!songUrl) return null;
 
   // 2. Scrape the song page
-  const songPage = await firecrawlScrape({
+  // extractChordifyContent is markdown-based; if we got HTML from flaresolverr
+  // on the search page, still attempt firecrawl for the song page markdown so
+  // the chord extractor has the format it expects. Fall back to flaresolverr HTML
+  // if firecrawl is unavailable.
+  let songContent: string | null = null;
+  const fc = await firecrawlScrape({
     url: songUrl,
     formats: ["markdown"],
     onlyMainContent: true,
     waitFor: 3000,
   });
-  if (!songPage?.markdown) return null;
+  if (fc?.markdown) {
+    songContent = fc.markdown;
+  } else {
+    songContent = await flaresolverrFetch(songUrl);
+  }
+  if (!songContent) return null;
 
   // 3. Extract title/artist from metadata if available, else use inputs
-  const resolvedTitle = songPage.metadata?.title
-    ? songPage.metadata.title.replace(/\s*[-|].*$/, "").trim() || title
+  // (metadata only available via firecrawl path)
+  const resolvedTitle = fc?.metadata?.title
+    ? fc.metadata.title.replace(/\s*[-|].*$/, "").trim() || title
     : title;
   const resolvedArtist = artist;
 
   // 4. Extract chord content
-  const content = extractChordifyContent(songPage.markdown, resolvedTitle, resolvedArtist);
+  const content = extractChordifyContent(songContent, resolvedTitle, resolvedArtist);
   if (!content) return null;
 
   return {
