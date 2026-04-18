@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ChordProParser, HtmlDivFormatter } from "chordsheetjs";
 import type { Song } from "chordsheetjs";
 import { ChordDiagram } from "@/components/ChordDiagram";
@@ -22,7 +22,6 @@ function extractUniqueChords(song: Song): string[] {
   const ordered: string[] = [];
   for (const line of song.lines) {
     for (const item of line.items) {
-      // ChordSheetJS items have a `.chords` string on ChordLyricsPair objects
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const chords: string = (item as any).chords ?? "";
       if (chords && !seen.has(chords)) {
@@ -34,7 +33,6 @@ function extractUniqueChords(song: Song): string[] {
   return ordered;
 }
 
-/** Extract all chord occurrences (including duplicates) for key detection. */
 function extractAllChords(song: Song): string[] {
   const all: string[] = [];
   for (const line of song.lines) {
@@ -61,8 +59,6 @@ export function ChordProView({
       const song = new ChordProParser().parse(source);
       const transposed = transpose ? song.transpose(transpose) : song;
 
-      // Prefer {key: X} directive if present in the source; transpose it to
-      // the displayed key when a transposition is active.
       const directiveMatch = source.match(/\{\s*key\s*:\s*([^}]+)\}/i);
       const directiveKey = directiveMatch
         ? transposeKey(directiveMatch[1].trim(), transpose)
@@ -89,6 +85,49 @@ export function ChordProView({
     }
   }, [source, transpose, showChordDiagrams]);
 
+  const paletteRef = useRef<HTMLDivElement | null>(null);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+
+  // Click a chord in the sheet → scroll its palette diagram into view and pulse it.
+  useEffect(() => {
+    if (!sheetRef.current || !paletteRef.current) return;
+    const sheet = sheetRef.current;
+    const palette = paletteRef.current;
+
+    const chordEls = sheet.querySelectorAll<HTMLElement>(".chord");
+    const listeners: Array<[HTMLElement, EventListener]> = [];
+
+    chordEls.forEach(el => {
+      const name = el.textContent?.trim();
+      if (!name) return;
+      el.style.cursor = "pointer";
+      el.setAttribute("role", "button");
+      el.setAttribute("tabindex", "0");
+      const handler: EventListener = (ev) => {
+        ev.preventDefault();
+        const target = palette.querySelector<HTMLElement>(`[data-chord="${CSS.escape(name)}"]`);
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        target.classList.remove("chord-pulse");
+        // Force reflow so the animation restarts when clicking the same chord twice.
+        void target.offsetWidth;
+        target.classList.add("chord-pulse");
+      };
+      el.addEventListener("click", handler);
+      el.addEventListener("keydown", (e) => {
+        const ke = e as KeyboardEvent;
+        if (ke.key === "Enter" || ke.key === " ") handler(e);
+      });
+      listeners.push([el, handler]);
+    });
+
+    return () => {
+      for (const [el, h] of listeners) {
+        el.removeEventListener("click", h);
+      }
+    };
+  }, [html]);
+
   return (
     <div>
       {keyLabel && (
@@ -100,20 +139,26 @@ export function ChordProView({
       )}
       {showChordDiagrams && uniqueChords.length > 0 && (
         <div
-          className="chord-palette flex gap-3 overflow-x-auto pb-3 mb-3"
-          style={{ borderBottom: "1px solid var(--border)" }}
+          ref={paletteRef}
+          className="chord-palette sticky top-0 z-10 flex gap-3 overflow-x-auto py-2 mb-3"
+          style={{
+            borderBottom: "1px solid var(--border)",
+            backgroundColor: "var(--bg)",
+          }}
           aria-label="Chord diagrams"
         >
           {uniqueChords.map(c => (
-            <ChordDiagram key={c} name={c} size="sm" />
+            <div key={c} data-chord={c} className="shrink-0 transition-transform">
+              <ChordDiagram name={c} size="sm" />
+            </div>
           ))}
         </div>
       )}
       <div
+        ref={sheetRef}
         className="chordpro prose prose-invert max-w-none font-mono"
         dangerouslySetInnerHTML={{ __html: html }}
       />
-      {/* TODO: hover popovers on inline .chord spans — follow-up task */}
     </div>
   );
 }
