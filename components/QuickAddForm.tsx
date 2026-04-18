@@ -205,9 +205,18 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
             <div className="text-xs truncate" style={{ color: "var(--ink-muted)" }}>
               {artist || track.artists.join(", ")}
               {fetchingChords && " · Fetching chords…"}
-              {!fetchingChords && suggestedChords && ` · Auto-filled from ${suggestedChords.sourceName}`}
               {!fetchingChords && !suggestedChords && " · No chords found online — type or paste below"}
             </div>
+            {!fetchingChords && suggestedChords && (
+              <div className="mt-2 px-3 py-2 rounded text-xs flex items-center gap-2 flex-wrap"
+                   style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}>
+                <span>Fetched from <strong style={{ color: "var(--accent)" }}>{suggestedChords.sourceName}</strong>:</span>
+                <span className="font-medium" style={{ color: "var(--ink)" }}>{suggestedChords.title}</span>
+                <span>by</span>
+                <span>{suggestedChords.artist}</span>
+                <a href={suggestedChords.sourceUrl} target="_blank" rel="noreferrer" className="underline ml-auto">source</a>
+              </div>
+            )}
           </div>
           {hasPreviewableContent && (
             <div className="flex items-center gap-1">
