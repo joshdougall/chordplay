@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 export type Prefs = {
   autoScroll: boolean;
+  autoScrollSpeed?: number;
   showChordDiagrams: boolean;
   songPreferences: Record<string, "chords" | "tab">;
   trackOverrides: Record<string, string>;
@@ -11,7 +12,7 @@ export type Prefs = {
   splitView?: Record<string, boolean>;
 };
 
-const DEFAULT: Prefs = { autoScroll: false, showChordDiagrams: true, songPreferences: {}, trackOverrides: {}, songTranspose: {}, preferredVersion: {}, splitView: {} };
+const DEFAULT: Prefs = { autoScroll: false, autoScrollSpeed: 1, showChordDiagrams: true, songPreferences: {}, trackOverrides: {}, songTranspose: {}, preferredVersion: {}, splitView: {} };
 const FILE = "prefs.json";
 const USER_ID_RE = /^[A-Za-z0-9._-]+$/;
 
