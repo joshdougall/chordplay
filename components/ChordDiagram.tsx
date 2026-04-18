@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { CHORD_DB, normalizeChord } from "@/lib/chord-diagrams/chord-db";
+import { lookupChord } from "@/lib/chord-diagrams/chord-lookup";
 
 const SIZE_MAP = { sm: 90, md: 120, lg: 180 } as const;
 
@@ -17,19 +17,27 @@ export function ChordDiagram({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const key = normalizeChord(name);
-    if (!key || !CHORD_DB[key]) {
-      containerRef.current.innerHTML = `<div style="font-size:0.7rem;color:var(--ink-faint);text-align:center;padding:4px 2px">${name}</div>`;
-      return;
-    }
-
+    const container = containerRef.current;
     const width = SIZE_MAP[size];
+    let cancelled = false;
 
-    // Dynamic import keeps svguitar out of the SSR bundle
-    import("svguitar").then(({ SVGuitarChord }) => {
-      if (!containerRef.current) return;
-      containerRef.current.innerHTML = "";
-      const chart = new SVGuitarChord(containerRef.current);
+    async function render() {
+      const chord = await lookupChord(name);
+
+      if (cancelled || !container) return;
+
+      if (!chord) {
+        container.innerHTML = `<div style="font-size:0.7rem;color:var(--ink-faint);text-align:center;padding:4px 2px">${name}</div>`;
+        return;
+      }
+
+      // Dynamic import keeps svguitar out of the SSR bundle
+      const { SVGuitarChord } = await import("svguitar");
+
+      if (cancelled || !container) return;
+
+      container.innerHTML = "";
+      const chart = new SVGuitarChord(container);
       chart
         .configure({
           title: name,
@@ -49,19 +57,22 @@ export function ChordDiagram({
           fixedDiagramPosition: true,
           titleFontSize: 38,
         })
-        .chord(CHORD_DB[key])
+        .chord(chord)
         .draw();
 
       // Scale the generated SVG to fit the size bucket
-      const svg = containerRef.current.querySelector("svg");
+      const svg = container.querySelector("svg");
       if (svg) {
         svg.style.width = `${width}px`;
         svg.style.height = "auto";
       }
-    });
+    }
+
+    render();
 
     return () => {
-      if (containerRef.current) containerRef.current.innerHTML = "";
+      cancelled = true;
+      if (container) container.innerHTML = "";
     };
   }, [name, size]);
 

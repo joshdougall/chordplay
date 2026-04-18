@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@coderline/alphatab": "^1.4.1",
+    "@tombatossals/chords-db": "^0.5.1",
     "chokidar": "^3.6.0",
     "chordsheetjs": "^12.0.0",
     "next": "^15.0.0",
