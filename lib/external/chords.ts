@@ -4,6 +4,7 @@ import { ChordifyProvider } from "./chordify";
 import { EChordsProvider } from "./e-chords";
 import { readCached, writeCached } from "./cache";
 import type { ExternalChords, ChordProvider } from "./provider";
+import { logger } from "@/lib/logger";
 
 export const PROVIDERS: ChordProvider[] = [
   ChordieProvider,        // fast, no auth
@@ -40,13 +41,21 @@ export async function findChords(
     if (isTest) {
       if (memCache.has(memKey)) {
         const cached = memCache.get(memKey);
-        if (cached) return cached;
+        if (cached) {
+          logger.info({ provider: p.id, artist, title, outcome: "cached-hit" }, "chords cache hit");
+          return cached;
+        }
+        logger.info({ provider: p.id, artist, title, outcome: "cached-miss" }, "chords negative cache");
         continue; // negative cache
       }
     } else {
       const cached = await readCached(p.id, normArtist, normTitle);
       if (cached !== null) {
-        if (cached.result) return cached.result;
+        if (cached.result) {
+          logger.info({ provider: p.id, artist, title, outcome: "cached-hit" }, "chords disk cache hit");
+          return cached.result;
+        }
+        logger.info({ provider: p.id, artist, title, outcome: "cached-miss" }, "chords disk negative cache");
         continue; // negative cache
       }
     }
@@ -58,8 +67,13 @@ export async function findChords(
       } else {
         await writeCached(p.id, normArtist, normTitle, result);
       }
-      if (result) return result;
-    } catch {
+      if (result) {
+        logger.info({ provider: p.id, artist, title, outcome: "hit" }, "chords provider hit");
+        return result;
+      }
+      logger.info({ provider: p.id, artist, title, outcome: "miss" }, "chords provider miss");
+    } catch (err) {
+      logger.error({ provider: p.id, artist, title, outcome: "error", err }, "chords provider error");
       if (isTest) {
         memCache.set(memKey, null);
       } else {

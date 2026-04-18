@@ -1,5 +1,6 @@
 import { readTokens, writeTokens } from "./tokens";
 import type { Config } from "../config";
+import { logger } from "@/lib/logger";
 
 type Cached = { accessToken: string; expiresAt: number };
 const caches = new Map<string, Cached>();
@@ -37,7 +38,10 @@ export async function getAccessToken(cfg: Config, userId: string): Promise<strin
     },
     body
   });
-  if (!res.ok) throw new Error(`token refresh failed: ${res.status}`);
+  if (!res.ok) {
+    logger.warn({ userId, status: res.status }, "spotify token refresh failed");
+    throw new Error(`token refresh failed: ${res.status}`);
+  }
   const data = (await res.json()) as { access_token: string; expires_in: number; refresh_token?: string };
   const entry: Cached = { accessToken: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 };
   caches.set(userId, entry);

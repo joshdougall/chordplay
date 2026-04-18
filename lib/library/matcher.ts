@@ -1,5 +1,6 @@
 import { LibraryIndex, LibraryEntry } from "./index";
 import { normalizeKey, normalizeField, levenshteinRatio } from "./normalize";
+import { logger } from "@/lib/logger";
 
 export type MatchInput = { trackId: string; title: string; artists: string[] };
 export type MatchPrefs = { trackOverrides?: Record<string, string> };
@@ -58,10 +59,17 @@ export function match(index: LibraryIndex, input: MatchInput, prefs: MatchPrefs)
   }
   if (best) {
     const allByKey = index.lookupAllByKey(best.entry.songKey);
+    logger.info({
+      trackId: input.trackId,
+      confidence: "fuzzy",
+      score: best.score,
+      matchId: best.entry.id
+    }, "library matcher fuzzy match");
     return {
       match: best.entry, confidence: "fuzzy", score: best.score,
       allMatches: allByKey.length > 1 ? allByKey : undefined,
     };
   }
+  logger.info({ trackId: input.trackId, confidence: null }, "library matcher no match");
   return { match: null, confidence: null };
 }

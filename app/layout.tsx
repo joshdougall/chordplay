@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Lora, JetBrains_Mono } from "next/font/google";
 import { Header } from "@/components/Header";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { ClientErrorReporter } from "@/components/ClientErrorReporter";
 
 const lora = Lora({ subsets: ["latin"], variable: "--font-lora" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono-brand", weight: "400" });
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${lora.variable} ${jetbrains.variable} flex flex-col h-screen`} style={{ backgroundColor: "var(--bg)", color: "var(--ink)" }}>
+        <ClientErrorReporter />
         <UpdateBanner />
         <Header />
         <main className="flex-1 overflow-auto">{children}</main>

@@ -5,6 +5,7 @@
 
 import type { ExternalChords, ChordProvider } from "./provider";
 import { levenshteinRatio, normalizeField } from "@/lib/library/normalize";
+import { logger } from "@/lib/logger";
 
 // Minimum similarity ratio required for both title and artist when validating
 // a fetched chordie page against the requested track.
@@ -154,10 +155,15 @@ export function validateChordieResult(
   const titleRatio = levenshteinRatio(normalizeField(gotTitle), normalizeField(wantTitle));
   const artistRatio = levenshteinRatio(normalizeField(gotArtist), normalizeField(wantArtist));
   if (titleRatio < MATCH_THRESHOLD || artistRatio < MATCH_THRESHOLD) {
-    console.log(
-      `[chordie] rejected: title ratio=${titleRatio.toFixed(2)} (got "${gotTitle}", want "${wantTitle}"), ` +
-      `artist ratio=${artistRatio.toFixed(2)} (got "${gotArtist}", want "${wantArtist}")`
-    );
+    logger.warn({
+      artist: wantArtist,
+      title: wantTitle,
+      returnedArtist: gotArtist,
+      returnedTitle: gotTitle,
+      titleRatio,
+      artistRatio,
+      reason: "validator-reject"
+    }, "chordie validator rejected result");
     return false;
   }
   return true;

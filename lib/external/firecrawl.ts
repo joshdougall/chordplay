@@ -11,6 +11,8 @@ export type ScrapeResult = {
   metadata?: { title?: string; description?: string; sourceURL?: string };
 };
 
+import { logger } from "@/lib/logger";
+
 export async function firecrawlScrape(opts: ScrapeOptions): Promise<ScrapeResult | null> {
   const key = process.env.FIRECRAWL_API_KEY;
   if (!key) return null;
@@ -28,8 +30,14 @@ export async function firecrawlScrape(opts: ScrapeOptions): Promise<ScrapeResult
       waitFor: opts.waitFor ?? 0,
     }),
   });
-  if (!res.ok) return null;
-  const data = (await res.json()) as { success: boolean; data?: ScrapeResult };
+  if (!res.ok) {
+    logger.warn({ url: opts.url, status: res.status }, "firecrawl scrape non-ok response");
+    return null;
+  }
+  const text = await res.text();
+  const bytes = text.length;
+  const data = JSON.parse(text) as { success: boolean; data?: ScrapeResult };
   if (!data.success || !data.data) return null;
+  logger.info({ url: opts.url, status: res.status, bytes }, "firecrawl scrape complete");
   return data.data;
 }
