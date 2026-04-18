@@ -4,6 +4,11 @@
 // ChordPro-compatible inline format.
 
 import type { ExternalChords, ChordProvider } from "./provider";
+import { levenshteinRatio, normalizeField } from "@/lib/library/normalize";
+
+// Minimum similarity ratio required for both title and artist when validating
+// a fetched chordie page against the requested track.
+const MATCH_THRESHOLD = 0.60;
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -137,6 +142,27 @@ function scoreTitleArtist(result: SearchResult, artist: string, title: string): 
   return titleScore + artistScore;
 }
 
+// Validate that the title and artist on the fetched page match the requested
+// values closely enough to be considered the same song.
+// Returns true if both ratios are >= MATCH_THRESHOLD, false otherwise.
+export function validateChordieResult(
+  gotTitle: string,
+  gotArtist: string,
+  wantTitle: string,
+  wantArtist: string
+): boolean {
+  const titleRatio = levenshteinRatio(normalizeField(gotTitle), normalizeField(wantTitle));
+  const artistRatio = levenshteinRatio(normalizeField(gotArtist), normalizeField(wantArtist));
+  if (titleRatio < MATCH_THRESHOLD || artistRatio < MATCH_THRESHOLD) {
+    console.log(
+      `[chordie] rejected: title ratio=${titleRatio.toFixed(2)} (got "${gotTitle}", want "${wantTitle}"), ` +
+      `artist ratio=${artistRatio.toFixed(2)} (got "${gotArtist}", want "${wantArtist}")`
+    );
+    return false;
+  }
+  return true;
+}
+
 async function fetchText(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
@@ -192,6 +218,11 @@ export async function fetchChordieChords(
     // 4. Parse and convert
     const lines = parseChordieTab(tabHtml);
     if (lines.length === 0) return null;
+
+    // 5. Validate the returned title/artist against what was requested
+    if (!validateChordieResult(best.title, best.artist, title, artist)) {
+      return null;
+    }
 
     const content = buildChordPro(lines, best.title, best.artist);
     return {

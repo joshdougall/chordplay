@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { chordieLineToChordPro, parseChordieTab, buildChordPro } from "@/lib/external/chordie";
+import { chordieLineToChordPro, parseChordieTab, buildChordPro, validateChordieResult } from "@/lib/external/chordie";
 
 // Fixture: a minimal chordie chord page fragment with chordline and textline divs
 // The chords are wrapped in the span structure chordie uses in its rendered HTML.
@@ -56,6 +56,30 @@ describe("parseChordieTab", () => {
   it("returns empty array for HTML with no chord/text divs", () => {
     const lines = parseChordieTab("<html><body><p>nothing here</p></body></html>");
     expect(lines).toHaveLength(0);
+  });
+});
+
+describe("validateChordieResult", () => {
+  it("returns null signal when artist doesn't match (title matches, artist doesn't)", () => {
+    // "Deeper Talks" by "Joe Jordan" → fetched "Deeper Talks" by "JJ Cale" should fail
+    const valid = validateChordieResult("Deeper Talks", "JJ Cale", "Deeper Talks", "Joe Jordan");
+    expect(valid).toBe(false);
+  });
+
+  it("returns true when both title and artist match closely enough", () => {
+    const valid = validateChordieResult("Deeper Talks", "Joe Jordan", "Deeper Talks", "Joe Jordan");
+    expect(valid).toBe(true);
+  });
+
+  it("returns false when title doesn't match", () => {
+    const valid = validateChordieResult("Cocaine", "Eric Clapton", "Deeper Talks", "Joe Jordan");
+    expect(valid).toBe(false);
+  });
+
+  it("tolerates minor variations in title and artist", () => {
+    // Slight punctuation or extra word differences should still pass
+    const valid = validateChordieResult("Hey Jude", "The Beatles", "Hey Jude", "Beatles");
+    expect(valid).toBe(true);
   });
 });
 
