@@ -10,3 +10,6 @@ next-env.d.ts
 dev-library/
 dev-data/
 .claude/
+.e2e-data/
+playwright-report/
+test-results/
