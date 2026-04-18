@@ -77,3 +77,10 @@ body {
   font-family: var(--font-lora, Georgia, serif);
   font-style: italic;
 }
+
+/* Skeleton loading animation */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+.skeleton { animation: skeleton-pulse 1.4s ease-in-out infinite; }

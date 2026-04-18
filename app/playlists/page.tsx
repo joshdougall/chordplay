@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Skeleton } from "@/components/Skeleton";
 
 type Playlist = {
   id: string;
@@ -25,7 +26,22 @@ export default function PlaylistsPage() {
   }, []);
 
   if (loading) {
-    return <div className="p-8" style={{ color: "var(--ink-muted)" }}>Loading playlists…</div>;
+    return (
+      <div className="p-6 flex flex-col gap-4">
+        <h1 className="text-xl font-semibold" style={{ color: "var(--ink)" }}>Playlists</h1>
+        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded overflow-hidden" style={{ border: "1px solid var(--border)", backgroundColor: "var(--bg-surface)" }}>
+              <Skeleton style={{ width: "100%", aspectRatio: "1 / 1", borderRadius: 0 }} />
+              <div className="p-3 flex flex-col gap-2">
+                <Skeleton style={{ height: "0.875rem", width: "70%" }} />
+                <Skeleton style={{ height: "0.75rem", width: "40%" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
   if (error) {
     return <div className="p-8" style={{ color: "var(--danger)" }}>{error}</div>;
@@ -38,7 +54,7 @@ export default function PlaylistsPage() {
         Pick a playlist to browse its tracks and batch-import chord sheets.
       </p>
       {playlists.length === 0 && (
-        <div style={{ color: "var(--ink-muted)" }}>No playlists found.</div>
+        <div style={{ color: "var(--ink-muted)" }}>No playlists. Create one in Spotify and it&apos;ll show up here.</div>
       )}
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
         {playlists.map(p => (

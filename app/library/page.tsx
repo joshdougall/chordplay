@@ -5,6 +5,7 @@ import Link from "next/link";
 import { QuickAddForm, type TrackStub } from "@/components/QuickAddForm";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { ShortcutsHelp } from "@/components/ShortcutsHelp";
+import { Skeleton } from "@/components/Skeleton";
 
 type LibraryEntry = {
   id: string;
@@ -221,9 +222,26 @@ export default function LibraryPage() {
             style={{ ...inputStyle }}
           />
           {loading ? (
-            <div className="text-sm" style={{ color: "var(--ink-muted)" }}>Loading…</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                  <Skeleton style={{ width: "100%", aspectRatio: "1 / 1", borderRadius: 0 }} />
+                  <div className="p-2 flex flex-col gap-2">
+                    <Skeleton style={{ height: "0.875rem", width: "75%" }} />
+                    <Skeleton style={{ height: "0.75rem", width: "50%" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : filtered.length === 0 ? (
-            <div className="text-sm" style={{ color: "var(--ink-faint)" }}>{entries.length === 0 ? "No sheets in library." : "No matches."}</div>
+            <div className="text-sm" style={{ color: "var(--ink-faint)" }}>
+              {entries.length === 0 ? (
+                <span>
+                  No sheets yet. Play something on Spotify to get started, or{" "}
+                  <a href="/add" className="underline" style={{ color: "var(--accent)" }}>add one manually</a>.
+                </span>
+              ) : "No matches."}
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {filtered.map(entry => (
