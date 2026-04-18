@@ -1,0 +1,501 @@
+[
+  {
+    "name": "exact title+artist match — Creep / Radiohead",
+    "library": [
+      { "path": "creep.pro", "title": "Creep", "artist": "Radiohead" }
+    ],
+    "input": { "trackId": "abc", "title": "Creep", "artists": ["Radiohead"] },
+    "expect": { "match": "creep.pro", "confidence": "exact" }
+  },
+  {
+    "name": "exact title+artist match — Ring of Fire / Johnny Cash",
+    "library": [
+      { "path": "ring-of-fire.pro", "title": "Ring of Fire", "artist": "Johnny Cash" }
+    ],
+    "input": { "trackId": "rof1", "title": "Ring of Fire", "artists": ["Johnny Cash"] },
+    "expect": { "match": "ring-of-fire.pro", "confidence": "exact" }
+  },
+  {
+    "name": "exact title+artist match — Hound Dog / Elvis Presley",
+    "library": [
+      { "path": "hound-dog.pro", "title": "Hound Dog", "artist": "Elvis Presley" }
+    ],
+    "input": { "trackId": "hd1", "title": "Hound Dog", "artists": ["Elvis Presley"] },
+    "expect": { "match": "hound-dog.pro", "confidence": "exact" }
+  },
+  {
+    "name": "exact title+artist match — Heart of Gold / Neil Young",
+    "library": [
+      { "path": "heart-of-gold.pro", "title": "Heart of Gold", "artist": "Neil Young" }
+    ],
+    "input": { "trackId": "hog1", "title": "Heart of Gold", "artists": ["Neil Young"] },
+    "expect": { "match": "heart-of-gold.pro", "confidence": "exact" }
+  },
+  {
+    "name": "exact title+artist match — Heroes / David Bowie",
+    "library": [
+      { "path": "heroes.pro", "title": "Heroes", "artist": "David Bowie" }
+    ],
+    "input": { "trackId": "h1", "title": "Heroes", "artists": ["David Bowie"] },
+    "expect": { "match": "heroes.pro", "confidence": "exact" }
+  },
+  {
+    "name": "exact title+artist match — Bohemian Rhapsody / Queen",
+    "library": [
+      { "path": "bohemian-rhapsody.pro", "title": "Bohemian Rhapsody", "artist": "Queen" }
+    ],
+    "input": { "trackId": "br1", "title": "Bohemian Rhapsody", "artists": ["Queen"] },
+    "expect": { "match": "bohemian-rhapsody.pro", "confidence": "exact" }
+  },
+  {
+    "name": "exact match — normalizeKey strips punctuation (Blowin' in the Wind)",
+    "library": [
+      { "path": "blowin.pro", "title": "Blowin' in the Wind", "artist": "Bob Dylan" }
+    ],
+    "input": { "trackId": "bw1", "title": "Blowin in the Wind", "artists": ["Bob Dylan"] },
+    "expect": { "match": "blowin.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — (Remastered 2015) suffix stripped by normalizeKey yields exact key",
+    "library": [
+      { "path": "hey-jude.pro", "title": "Hey Jude", "artist": "The Beatles" }
+    ],
+    "input": { "trackId": "hj1", "title": "Hey Jude (Remastered 2015)", "artists": ["The Beatles"] },
+    "expect": { "match": "hey-jude.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — [2018 Mix] bracket suffix stripped, yielding exact key",
+    "library": [
+      { "path": "blackbird.pro", "title": "Blackbird", "artist": "The Beatles" }
+    ],
+    "input": { "trackId": "bb1", "title": "Blackbird [2018 Mix]", "artists": ["The Beatles"] },
+    "expect": { "match": "blackbird.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — case difference only (wonderwall lowercase)",
+    "library": [
+      { "path": "wonderwall.pro", "title": "Wonderwall", "artist": "Oasis" }
+    ],
+    "input": { "trackId": "ww1", "title": "wonderwall", "artists": ["Oasis"] },
+    "expect": { "match": "wonderwall.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — (feat. Bradley Cooper) stripped from title yields exact key",
+    "library": [
+      { "path": "shallow.pro", "title": "Shallow", "artist": "Lady Gaga" }
+    ],
+    "input": { "trackId": "sh1", "title": "Shallow (feat. Bradley Cooper)", "artists": ["Lady Gaga"] },
+    "expect": { "match": "shallow.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — (Live) suffix stripped by normalizeKey",
+    "library": [
+      { "path": "comfortably-numb.pro", "title": "Comfortably Numb", "artist": "Pink Floyd" }
+    ],
+    "input": { "trackId": "cn1", "title": "Comfortably Numb (Live)", "artists": ["Pink Floyd"] },
+    "expect": { "match": "comfortably-numb.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — (Remastered) suffix on Karma Police",
+    "library": [
+      { "path": "karma-police.pro", "title": "Karma Police", "artist": "Radiohead" }
+    ],
+    "input": { "trackId": "kp1", "title": "Karma Police (Remastered)", "artists": ["Radiohead"] },
+    "expect": { "match": "karma-police.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — [Explicit] tag stripped from title",
+    "library": [
+      { "path": "creep-explicit.pro", "title": "Creep", "artist": "Radiohead" }
+    ],
+    "input": { "trackId": "crx1", "title": "Creep [Explicit]", "artists": ["Radiohead"] },
+    "expect": { "match": "creep-explicit.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — (Remastered) on Stairway to Heaven",
+    "library": [
+      { "path": "stairway.pro", "title": "Stairway to Heaven", "artist": "Led Zeppelin" }
+    ],
+    "input": { "trackId": "sth1", "title": "Stairway to Heaven (Remastered)", "artists": ["Led Zeppelin"] },
+    "expect": { "match": "stairway.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — (Like a Rolling Stone) with remaster year",
+    "library": [
+      { "path": "rolling-stone.pro", "title": "Like a Rolling Stone", "artist": "Bob Dylan" }
+    ],
+    "input": { "trackId": "lars1", "title": "Like a Rolling Stone (Remastered 2010)", "artists": ["Bob Dylan"] },
+    "expect": { "match": "rolling-stone.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — (2004 Remaster) on Go Your Own Way",
+    "library": [
+      { "path": "gyow.pro", "title": "Go Your Own Way", "artist": "Fleetwood Mac" }
+    ],
+    "input": { "trackId": "gyow1", "title": "Go Your Own Way (2004 Remaster)", "artists": ["Fleetwood Mac"] },
+    "expect": { "match": "gyow.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — (2011 Remaster) on Bohemian Rhapsody",
+    "library": [
+      { "path": "bohemian-rhapsody-2.pro", "title": "Bohemian Rhapsody", "artist": "Queen" }
+    ],
+    "input": { "trackId": "br2", "title": "Bohemian Rhapsody (2011 Remaster)", "artists": ["Queen"] },
+    "expect": { "match": "bohemian-rhapsody-2.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — library title has minor typo (levenshtein close)",
+    "library": [
+      { "path": "supernova.pro", "title": "Champagne Supernoova", "artist": "Oasis" }
+    ],
+    "input": { "trackId": "csn1", "title": "Champagne Supernova", "artists": ["Oasis"] },
+    "expect": { "match": "supernova.pro", "confidence": "fuzzy" }
+  },
+  {
+    "name": "fuzzy match — title typo one extra character (Creeep vs Creep)",
+    "library": [
+      { "path": "creep2.pro", "title": "Creep", "artist": "Radiohead" }
+    ],
+    "input": { "trackId": "cr2", "title": "Creeep", "artists": ["Radiohead"] },
+    "expect": { "match": "creep2.pro", "confidence": "fuzzy" }
+  },
+  {
+    "name": "fuzzy match — artist has minor spacing (Radio Head vs Radiohead)",
+    "library": [
+      { "path": "karma-police2.pro", "title": "Karma Police", "artist": "Radio Head" }
+    ],
+    "input": { "trackId": "kp2", "title": "Karma Police", "artists": ["Radiohead"] },
+    "expect": { "match": "karma-police2.pro", "confidence": "fuzzy" }
+  },
+  {
+    "name": "fuzzy match — (Live at Reading) stripped from title",
+    "library": [
+      { "path": "smells.pro", "title": "Smells Like Teen Spirit", "artist": "Nirvana" }
+    ],
+    "input": { "trackId": "slts1", "title": "Smells Like Teen Spirit (Live at Reading)", "artists": ["Nirvana"] },
+    "expect": { "match": "smells.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — unicode artist exact (Björk)",
+    "library": [
+      { "path": "human-behaviour.pro", "title": "Human Behaviour", "artist": "Björk" }
+    ],
+    "input": { "trackId": "hb1", "title": "Human Behaviour", "artists": ["Björk"] },
+    "expect": { "match": "human-behaviour.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — unicode artist and title (Sigur Rós / Hoppípolla)",
+    "library": [
+      { "path": "hoppipolla.pro", "title": "Hoppípolla", "artist": "Sigur Rós" }
+    ],
+    "input": { "trackId": "hop1", "title": "Hoppípolla", "artists": ["Sigur Rós"] },
+    "expect": { "match": "hoppipolla.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — unicode with (Remastered) suffix (Björk / Jóga)",
+    "library": [
+      { "path": "joga.pro", "title": "Jóga", "artist": "Björk" }
+    ],
+    "input": { "trackId": "jg1", "title": "Jóga (Remastered)", "artists": ["Björk"] },
+    "expect": { "match": "joga.pro", "confidence": "exact" }
+  },
+  {
+    "name": "fuzzy match — empty artist field on both sides matches by title",
+    "library": [
+      { "path": "anonymous.pro", "title": "Smells Like Teen Spirit", "artist": "" }
+    ],
+    "input": { "trackId": "anon1", "title": "Smells Like Teen Spirit", "artists": [] },
+    "expect": { "match": "anonymous.pro", "confidence": "exact" }
+  },
+  {
+    "name": "real bug — Deeper Talks / Joe Jordan must not match JJ Cale / Cocaine",
+    "library": [
+      { "path": "cocaine.pro", "title": "Cocaine", "artist": "JJ Cale" }
+    ],
+    "input": { "trackId": "jj1", "title": "Deeper Talks", "artists": ["Joe Jordan"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — Love vs Love Song (different songs)",
+    "library": [
+      { "path": "love-song.pro", "title": "Love Song", "artist": "Artist B" }
+    ],
+    "input": { "trackId": "lv1", "title": "Love", "artists": ["Artist A"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — Breathe (Pink Floyd) vs Breathe Me (Sia)",
+    "library": [
+      { "path": "breathe-me.pro", "title": "Breathe Me", "artist": "Sia" }
+    ],
+    "input": { "trackId": "br3", "title": "Breathe", "artists": ["Pink Floyd"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — Home vs Coming Home (different songs)",
+    "library": [
+      { "path": "coming-home.pro", "title": "Coming Home", "artist": "Some Artist" }
+    ],
+    "input": { "trackId": "hm1", "title": "Home", "artists": ["Some Artist"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — Shake It Off by Mariah Carey vs Taylor Swift",
+    "library": [
+      { "path": "shake-it-off.pro", "title": "Shake It Off", "artist": "Taylor Swift" }
+    ],
+    "input": { "trackId": "sio1", "title": "Shake It Off", "artists": ["Mariah Carey"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — John Mayer / Gravity vs Johnny Mayer / Gravity should not match",
+    "library": [
+      { "path": "gravity.pro", "title": "Gravity", "artist": "Johnny Mayer" }
+    ],
+    "input": { "trackId": "grav1", "title": "Gravity", "artists": ["John Mayer"] },
+    "expect": { "match": "gravity.pro", "confidence": "fuzzy" },
+    "_comment": "John Mayer vs Johnny Mayer: levenshtein ratio 0.833 on artist (10/12), combined 0.942 > 0.88 threshold. This IS a match — similar-name artists sharing a song title are a real risk, but 0.833 > 0.80 floor so it passes."
+  },
+  {
+    "name": "false positive — Tom Petty / Free Fallin vs Tom Jones / Free Fallin should not match",
+    "library": [
+      { "path": "free-fallin.pro", "title": "Free Fallin", "artist": "Tom Jones" }
+    ],
+    "input": { "trackId": "ff1", "title": "Free Fallin", "artists": ["Tom Petty"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — same title, unrelated artists (Kylie Minogue vs Robbie Williams)",
+    "library": [
+      { "path": "angels.pro", "title": "Angels", "artist": "Robbie Williams" }
+    ],
+    "input": { "trackId": "cam1", "title": "Can't Get You Out of My Head", "artists": ["Kylie Minogue"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — Yesterday vs The Day Before Yesterday",
+    "library": [
+      { "path": "day-before.pro", "title": "The Day Before Yesterday", "artist": "Some Artist" }
+    ],
+    "input": { "trackId": "yest1", "title": "Yesterday", "artists": ["Some Artist"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — Run vs Run the World",
+    "library": [
+      { "path": "run-the-world.pro", "title": "Run the World", "artist": "Beyoncé" }
+    ],
+    "input": { "trackId": "run1", "title": "Run", "artists": ["Beyoncé"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — Fire vs Ring of Fire",
+    "library": [
+      { "path": "ring-of-fire2.pro", "title": "Ring of Fire", "artist": "Some Artist" }
+    ],
+    "input": { "trackId": "fire1", "title": "Fire", "artists": ["Some Artist"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — Wild vs Wild Thing",
+    "library": [
+      { "path": "wild-thing.pro", "title": "Wild Thing", "artist": "The Troggs" }
+    ],
+    "input": { "trackId": "wild1", "title": "Wild", "artists": ["Artist"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — title similar but artist totally different (Blowin in the Wind / Knockin on Heaven Door)",
+    "library": [
+      { "path": "knockin.pro", "title": "Knockin on Heaven Door", "artist": "Bob Dylan" }
+    ],
+    "input": { "trackId": "bw2", "title": "Blowin in the Wind", "artists": ["Bob Dylan"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "false positive — ft. noise in artist field causes artist floor failure",
+    "library": [
+      { "path": "i-dont-care.pro", "title": "I Don't Care", "artist": "Ed Sheeran" }
+    ],
+    "input": { "trackId": "idc1", "title": "I Don't Care", "artists": ["Ed Sheeran ft. Justin Bieber"] },
+    "expect": { "match": null },
+    "_comment": "Spotify sometimes puts ft. info in the artist field. After normalization 'ed sheeran ft justin bieber' vs 'ed sheeran' ratio is ~0.37, below ARTIST_FLOOR 0.80, so no match. Ideally Spotify sends the clean artist, but we document this as a known limitation."
+  },
+  {
+    "name": "false positive — multi-artist joined string causes artist floor failure",
+    "library": [
+      { "path": "niggas-in-paris.pro", "title": "Niggas in Paris", "artist": "Jay-Z" }
+    ],
+    "input": { "trackId": "nip1", "title": "Niggas in Paris", "artists": ["Jay-Z", "Kanye West"] },
+    "expect": { "match": null },
+    "_comment": "artists joined as 'Jay-Z, Kanye West' normalizes to 'jay z kanye west'. Ratio vs 'jay z' is ~0.31, below ARTIST_FLOOR. This is a known limitation when Spotify lists multiple artists."
+  },
+  {
+    "name": "false positive — The Rolling Stones vs Rolling Stones (the- prefix causes sub-floor artist score)",
+    "library": [
+      { "path": "paint-it-black.pro", "title": "Paint It Black", "artist": "Rolling Stones" }
+    ],
+    "input": { "trackId": "pib1", "title": "Paint It Black", "artists": ["The Rolling Stones"] },
+    "expect": { "match": null },
+    "_comment": "Normalized: 'the rolling stones' vs 'rolling stones', ratio = 0.778, below ARTIST_FLOOR 0.80. Known issue with The-prefix stripping — if this causes prod problems, consider adding The-prefix normalization."
+  },
+  {
+    "name": "false positive — You & I vs You and I (ampersand removed; 'you i' vs 'you and i' differ)",
+    "library": [
+      { "path": "you-and-i.pro", "title": "You and I", "artist": "Some Artist" }
+    ],
+    "input": { "trackId": "yai1", "title": "You & I", "artists": ["Some Artist"] },
+    "expect": { "match": null },
+    "_comment": "& is stripped to space giving 'you i', while 'and' is kept giving 'you and i'. Levenshtein ratio ~0.556, below TITLE_FLOOR. This is a known ampersand normalization gap."
+  },
+  {
+    "name": "track-ID override — spotifyTrackId in library wins even if title/artist differ",
+    "library": [
+      { "path": "hey-jude2.pro", "title": "Hey Jude", "artist": "The Beatles", "spotifyTrackId": "trk-hj-override" }
+    ],
+    "input": { "trackId": "trk-hj-override", "title": "Completely Different Title", "artists": ["Wrong Artist"] },
+    "expect": { "match": "hey-jude2.pro", "confidence": "exact" }
+  },
+  {
+    "name": "track-ID override — prefs trackOverrides wins above everything else",
+    "library": [
+      { "path": "creep3.pro", "title": "Creep", "artist": "Radiohead" },
+      { "path": "hey-jude3.pro", "title": "Hey Jude", "artist": "The Beatles" }
+    ],
+    "input": { "trackId": "some-track-id", "title": "Creep", "artists": ["Radiohead"] },
+    "prefs": { "trackOverrides": { "some-track-id": "hey-jude3.pro" } },
+    "expect": { "match": "hey-jude3.pro", "confidence": "exact" }
+  },
+  {
+    "name": "track-ID override — prefs trackOverrides beats spotify_track_id in library",
+    "library": [
+      { "path": "creep4.pro", "title": "Creep", "artist": "Radiohead", "spotifyTrackId": "some-track-id2" },
+      { "path": "wonderwall2.pro", "title": "Wonderwall", "artist": "Oasis" }
+    ],
+    "input": { "trackId": "some-track-id2", "title": "Creep", "artists": ["Radiohead"] },
+    "prefs": { "trackOverrides": { "some-track-id2": "wonderwall2.pro" } },
+    "expect": { "match": "wonderwall2.pro", "confidence": "exact" }
+  },
+  {
+    "name": "allMatches — two library entries share same normalized key (two versions of Creep)",
+    "_comment": "Primary match is whichever entry the Map returns first (walk-order dependent). We assert allMatches contains both and confidence is exact.",
+    "library": [
+      { "path": "creep-std.pro", "title": "Creep", "artist": "Radiohead" },
+      { "path": "creep-acoustic.pro", "title": "Creep", "artist": "Radiohead", "versionName": "Acoustic" }
+    ],
+    "input": { "trackId": "cr-all1", "title": "Creep", "artists": ["Radiohead"] },
+    "expect": {
+      "matchOneOf": ["creep-std.pro", "creep-acoustic.pro"],
+      "confidence": "exact",
+      "allMatches": ["creep-std.pro", "creep-acoustic.pro"]
+    }
+  },
+  {
+    "name": "allMatches — three versions of same song",
+    "_comment": "Primary match is whichever entry the Map returns first. We assert allMatches contains all three.",
+    "library": [
+      { "path": "stairway-std.pro", "title": "Stairway to Heaven", "artist": "Led Zeppelin" },
+      { "path": "stairway-live.pro", "title": "Stairway to Heaven", "artist": "Led Zeppelin", "versionName": "Live" },
+      { "path": "stairway-alt.pro", "title": "Stairway to Heaven", "artist": "Led Zeppelin", "versionName": "Alt Mix" }
+    ],
+    "input": { "trackId": "sth-all1", "title": "Stairway to Heaven", "artists": ["Led Zeppelin"] },
+    "expect": {
+      "matchOneOf": ["stairway-std.pro", "stairway-live.pro", "stairway-alt.pro"],
+      "confidence": "exact",
+      "allMatches": ["stairway-std.pro", "stairway-live.pro", "stairway-alt.pro"]
+    }
+  },
+  {
+    "name": "no library entries — returns null",
+    "library": [],
+    "input": { "trackId": "none1", "title": "Any Song", "artists": ["Any Artist"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "parse error — entry with parseError is skipped in fuzzy scan",
+    "library": [
+      { "path": "bad.pro", "title": "Creep", "artist": "Radiohead", "parseError": true }
+    ],
+    "input": { "trackId": "pe1", "title": "Creep", "artists": ["Radiohead"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "parse error — valid entry alongside errored entry still matches",
+    "library": [
+      { "path": "bad2.pro", "title": "Creep", "artist": "Radiohead", "parseError": true },
+      { "path": "good.pro", "title": "Creep", "artist": "Radiohead" }
+    ],
+    "input": { "trackId": "pe2", "title": "Creep", "artists": ["Radiohead"] },
+    "expect": { "match": "good.pro", "confidence": "exact" }
+  },
+  {
+    "name": "no match — completely unrelated input and library",
+    "library": [
+      { "path": "my-favorite-place.pro", "title": "My Favorite Place", "artist": "Stephen Kellogg" }
+    ],
+    "input": { "trackId": "unrel1", "title": "xyzzy", "artists": ["nobody"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "no match — input title partially overlaps but artist totally different",
+    "library": [
+      { "path": "angels2.pro", "title": "Angels", "artist": "Robbie Williams" }
+    ],
+    "input": { "trackId": "km2", "title": "Angels", "artists": ["Kylie Minogue"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "no match — empty input with populated library",
+    "library": [
+      { "path": "creep5.pro", "title": "Creep", "artist": "Radiohead" }
+    ],
+    "input": { "trackId": "empty1", "title": "", "artists": [] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "no match — single-word title, partial library title",
+    "library": [
+      { "path": "something.pro", "title": "Something in the Way", "artist": "Nirvana" }
+    ],
+    "input": { "trackId": "sw1", "title": "Something", "artists": ["Nirvana"] },
+    "expect": { "match": null }
+  },
+  {
+    "name": "no match — Coldplay typo in artist field falls below ARTIST_FLOOR",
+    "library": [
+      { "path": "the-scientist.pro", "title": "The Scientist", "artist": "Coldplay" }
+    ],
+    "input": { "trackId": "ts1", "title": "The Scientist", "artists": ["Coldpaly"] },
+    "expect": { "match": null },
+    "_comment": "Normalized 'coldpaly' vs 'coldplay': levenshtein ratio = 0.75, just below ARTIST_FLOOR 0.80. The correct song is The Scientist by Coldplay, but a typo in the artist name prevents matching."
+  },
+  {
+    "name": "unicode — Björk exact match (library uses accented chars)",
+    "library": [
+      { "path": "bjork-venus.pro", "title": "Venus as a Boy", "artist": "Björk" }
+    ],
+    "input": { "trackId": "vab1", "title": "Venus as a Boy", "artists": ["Björk"] },
+    "expect": { "match": "bjork-venus.pro", "confidence": "exact" }
+  },
+  {
+    "name": "unicode — Sigur Rós with accent (exact match)",
+    "library": [
+      { "path": "gobbledigook.pro", "title": "Gobbledigook", "artist": "Sigur Rós" }
+    ],
+    "input": { "trackId": "gd1", "title": "Gobbledigook", "artists": ["Sigur Rós"] },
+    "expect": { "match": "gobbledigook.pro", "confidence": "exact" }
+  },
+  {
+    "name": "track-ID override — library spotifyTrackId matches by track ID, allMatches populated when multiple versions",
+    "library": [
+      { "path": "creep-std2.pro", "title": "Creep", "artist": "Radiohead", "spotifyTrackId": "trk-creep-multi" },
+      { "path": "creep-live2.pro", "title": "Creep", "artist": "Radiohead", "versionName": "Live" }
+    ],
+    "input": { "trackId": "trk-creep-multi", "title": "Creep (Live)", "artists": ["Radiohead"] },
+    "expect": {
+      "match": "creep-std2.pro",
+      "confidence": "exact",
+      "allMatches": ["creep-std2.pro", "creep-live2.pro"]
+    }
+  }
+]
