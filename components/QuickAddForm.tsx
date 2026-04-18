@@ -214,7 +214,7 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
               <button
                 type="button"
                 onClick={() => setTranspose(t => t - 1)}
-                className="w-7 h-7 rounded text-sm"
+                className="h-10 min-w-10 md:h-7 md:min-w-7 rounded text-sm flex items-center justify-center"
                 style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}
                 aria-label="Transpose down"
               >−</button>
@@ -224,7 +224,7 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
               <button
                 type="button"
                 onClick={() => setTranspose(t => t + 1)}
-                className="w-7 h-7 rounded text-sm"
+                className="h-10 min-w-10 md:h-7 md:min-w-7 rounded text-sm flex items-center justify-center"
                 style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}
                 aria-label="Transpose up"
               >+</button>
@@ -249,7 +249,7 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
             onMouseEnter={e => { if (!saving && content.trim()) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent-hover)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--accent)"; }}
           >
-            {saving ? "Saving…" : "Save to library"}
+            {saving ? "Saving…" : "Save"}
           </button>
         </div>
       )}

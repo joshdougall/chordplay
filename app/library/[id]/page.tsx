@@ -95,7 +95,7 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
         <span className="text-neutral-500 shrink-0">{entry.artist}</span>
         {isChordPro && !editing && (
           <div className="flex items-center gap-1 shrink-0">
-            <button onClick={down} className="w-7 h-7 rounded bg-neutral-800 hover:bg-neutral-700 flex items-center justify-center">−</button>
+            <button onClick={down} className="h-10 w-10 md:h-7 md:w-7 rounded bg-neutral-800 hover:bg-neutral-700 flex items-center justify-center">−</button>
             <button
               onClick={reset}
               className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-xs w-12 text-center"
@@ -103,7 +103,7 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
             >
               {semitones === 0 ? "0" : (semitones > 0 ? `+${semitones}` : `${semitones}`)}
             </button>
-            <button onClick={up} className="w-7 h-7 rounded bg-neutral-800 hover:bg-neutral-700 flex items-center justify-center">+</button>
+            <button onClick={up} className="h-10 w-10 md:h-7 md:w-7 rounded bg-neutral-800 hover:bg-neutral-700 flex items-center justify-center">+</button>
           </div>
         )}
         {!editing && (

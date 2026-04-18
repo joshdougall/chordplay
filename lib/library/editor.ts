@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { Format } from "./format";
+import { detectKey } from "@/lib/music/key-detection";
 
 export function safePath(root: string, id: string): string {
   if (isAbsolute(id)) throw new Error("absolute paths not allowed");
@@ -81,6 +82,20 @@ export async function createEntry(root: string, input: CreateInput): Promise<str
     body += `{title: ${input.title}}\n`;
     body += `{artist: ${input.artist}}\n`;
     if (input.spotifyTrackId) body += `{spotify_track_id: ${input.spotifyTrackId}}\n`;
+
+    // Auto-inject {key: X} for chordpro if not already present
+    if (
+      input.format === "chordpro" &&
+      input.content.trim() !== "" &&
+      !/\{\s*key\s*:/i.test(input.content)
+    ) {
+      const chords = [...input.content.matchAll(/\[([A-G][#b]?[^\]\s]*)\]/g)].map(m => m[1]);
+      const detected = detectKey(chords);
+      if (detected) {
+        body += `{key: ${detected}}\n`;
+      }
+    }
+
     body += "\n" + input.content;
   } else {
     body = input.content;

@@ -273,7 +273,7 @@ export default function HomePage() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setTranspose(transposeOffset - 1)}
-              className="px-2 py-1 rounded"
+              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
               style={btnStyle}
               aria-label="Transpose down"
             >−</button>
@@ -282,7 +282,7 @@ export default function HomePage() {
             </span>
             <button
               onClick={() => setTranspose(transposeOffset + 1)}
-              className="px-2 py-1 rounded"
+              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
               style={btnStyle}
               aria-label="Transpose up"
             >+</button>
@@ -302,24 +302,26 @@ export default function HomePage() {
                 (fuzzy {Math.round((matchResp.score ?? 0) * 100)}%)
               </span>
             )}
-            {matchResp?.confidence === "fuzzy" && (
+            {matchResp?.confidence && (
               <>
                 <button
                   onClick={() => setDismissedTrackId(trackId ?? null)}
                   className="px-2 py-1 rounded text-xs"
                   style={btnStyle}
-                  title="Wrong match — show add form instead"
+                  title="Not this song — show add form instead"
                 >
-                  wrong match
+                  not this song
                 </button>
-                <button
-                  onClick={lockFuzzyMatch}
-                  className="px-2 py-1 rounded text-xs"
-                  style={{ ...btnStyle, color: "var(--accent)" }}
-                  title="Confirm this is the correct match"
-                >
-                  this is correct
-                </button>
+                {matchResp?.confidence === "fuzzy" && (
+                  <button
+                    onClick={lockFuzzyMatch}
+                    className="px-2 py-1 rounded text-xs"
+                    style={{ ...btnStyle, color: "var(--accent)" }}
+                    title="Confirm this is the correct match"
+                  >
+                    Use this
+                  </button>
+                )}
               </>
             )}
             <button onClick={() => setEditing(true)} className="px-2 py-1 rounded" style={btnStyle}>
