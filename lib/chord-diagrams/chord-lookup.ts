@@ -29,14 +29,14 @@ type GuitarJson = {
   chords: Record<string, ChordsDbEntry[]>;
 };
 
-let cachedGuitarChords: Record<string, ChordsDbEntry[]> | null = null;
+// Static import so Next.js bundles the JSON into the client chunks (and Docker standalone
+// output). Dynamic import was getting tree-shaken out of the production build.
+import guitarData from "@tombatossals/chords-db/lib/guitar.json";
+
+const GUITAR_CHORDS = (guitarData as unknown as GuitarJson).chords;
 
 async function getGuitarChords(): Promise<Record<string, ChordsDbEntry[]>> {
-  if (cachedGuitarChords) return cachedGuitarChords;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mod = await import("@tombatossals/chords-db/lib/guitar.json");
-  cachedGuitarChords = (mod.default as GuitarJson).chords;
-  return cachedGuitarChords;
+  return GUITAR_CHORDS;
 }
 
 /**
