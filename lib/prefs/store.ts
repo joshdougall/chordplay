@@ -8,9 +8,10 @@ export type Prefs = {
   trackOverrides: Record<string, string>;
   songTranspose: Record<string, number>;
   preferredVersion: Record<string, string>;
+  splitView?: Record<string, boolean>;
 };
 
-const DEFAULT: Prefs = { autoScroll: false, showChordDiagrams: true, songPreferences: {}, trackOverrides: {}, songTranspose: {}, preferredVersion: {} };
+const DEFAULT: Prefs = { autoScroll: false, showChordDiagrams: true, songPreferences: {}, trackOverrides: {}, songTranspose: {}, preferredVersion: {}, splitView: {} };
 const FILE = "prefs.json";
 const USER_ID_RE = /^[A-Za-z0-9._-]+$/;
 

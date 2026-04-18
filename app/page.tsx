@@ -51,6 +51,9 @@ export default function HomePage() {
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [duplicatingVersion, setDuplicatingVersion] = useState(false);
   const [showLibraryPicker, setShowLibraryPicker] = useState(false);
+  const [splitView, setSplitView] = useState(false);
+  const [tabContent, setTabContent] = useState<string | null>(null);
+  const [chordContent, setChordContent] = useState<string | null>(null);
   // Bump to force a refetch of the library match (e.g., after saving a new sheet from QuickAddForm)
   const [matchRefetch, setMatchRefetch] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -154,14 +157,72 @@ export default function HomePage() {
   const currentId = currentEntry?.id;
   const transposeOffset: number = (currentId ? (prefs?.songTranspose?.[currentId] ?? 0) : 0);
 
+  // Detect if split view is available: song has both a chordpro version and a tab version
+  const allMatches = matchResp?.allMatches ?? (matchResp?.match ? [matchResp.match] : []);
+  const matchFormats = new Set(allMatches.map(e => e.format));
+  const canSplit = matchFormats.size > 1 && matchFormats.has("chordpro") && (matchFormats.has("ascii-tab") || matchFormats.has("guitar-pro"));
+
+  // Chord pane entry: prefer chordpro version (or selected version if it's chordpro)
+  const chordEntry = canSplit
+    ? (currentEntry?.format === "chordpro" ? currentEntry : allMatches.find(e => e.format === "chordpro"))
+    : null;
+  // Tab pane entry: first ascii-tab or guitar-pro entry
+  const tabEntry = canSplit
+    ? allMatches.find(e => e.format === "ascii-tab" || e.format === "guitar-pro")
+    : null;
+
+  const songKey = matchResp?.match?.songKey;
+
   // Determine if current match should be shown (respect dismissal)
   const effectiveMatch = (matchResp?.match && dismissedTrackId !== trackId) ? currentEntry ?? null : null;
+
+  // Restore split-view preference when song changes
+  useEffect(() => {
+    if (!songKey || !prefs) return;
+    setSplitView(prefs.splitView?.[songKey] ?? false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [songKey]);
+
+  // Load tab pane content when split is enabled
+  useEffect(() => {
+    if (!splitView || !tabEntry) { setTabContent(null); return; }
+    if (tabEntry.format === "guitar-pro") { setTabContent(null); return; } // guitar-pro uses src URL directly
+    fetch(`/api/library/${encodeURIComponent(tabEntry.id)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setTabContent(data.content); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [splitView, tabEntry?.id]);
+
+  // Load chord pane content when split is enabled and current entry is not the chord entry
+  useEffect(() => {
+    if (!splitView || !chordEntry) { setChordContent(null); return; }
+    // If the currently loaded content is already for the chord entry, reuse it
+    if (currentEntry?.id === chordEntry.id && content !== null) {
+      setChordContent(content);
+      return;
+    }
+    fetch(`/api/library/${encodeURIComponent(chordEntry.id)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setChordContent(data.content); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [splitView, chordEntry?.id, content]);
 
   async function toggleAutoScroll() {
     if (!prefs) return;
     const next = { ...prefs, autoScroll: !prefs.autoScroll };
     setPrefs(next);
     await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
+  }
+
+  async function toggleSplitView() {
+    if (!prefs || !songKey) return;
+    const next = !splitView;
+    setSplitView(next);
+    const nextPrefs = { ...prefs, splitView: { ...(prefs.splitView ?? {}), [songKey]: next } };
+    setPrefs(nextPrefs);
+    await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(nextPrefs) });
   }
 
   async function setTranspose(n: number) {
@@ -348,7 +409,13 @@ export default function HomePage() {
           <input type="checkbox" checked={prefs?.autoScroll ?? false} onChange={toggleAutoScroll} />
           Auto-scroll
         </label>
-        {effectiveMatch && effectiveMatch.format === "chordpro" && (
+        {canSplit && effectiveMatch && (
+          <label className="flex items-center gap-2" style={{ color: splitView ? "var(--accent)" : "var(--ink-muted)" }}>
+            <input type="checkbox" checked={splitView} onChange={toggleSplitView} />
+            Split view
+          </label>
+        )}
+        {effectiveMatch && (effectiveMatch.format === "chordpro" || (splitView && chordEntry)) && (
           <div className="flex items-center gap-1">
             <button
               onClick={() => setTranspose(transposeOffset - 1)}
@@ -426,7 +493,7 @@ export default function HomePage() {
           ?
         </button>
       </div>
-      {versions && versions.length > 1 && effectiveMatch && (
+      {versions && versions.length > 1 && effectiveMatch && !splitView && (
         <div className="px-3 py-1.5 flex items-center gap-2 text-xs flex-wrap" style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--bg-surface)" }}>
           <span style={{ color: "var(--ink-faint)" }}>Version:</span>
           {versions.map(v => {
@@ -450,6 +517,15 @@ export default function HomePage() {
       <div ref={scrollRef} className="flex-1 overflow-auto">
         {editing && effectiveMatch ? (
           <Editor id={effectiveMatch.id} onClose={() => setEditing(false)} onSaved={() => setEditing(false)} />
+        ) : effectiveMatch && splitView && canSplit && chordEntry && tabEntry ? (
+          <SplitView
+            chordEntry={chordEntry}
+            chordContent={chordContent}
+            tabEntry={tabEntry}
+            tabContent={tabContent}
+            transposeOffset={transposeOffset}
+            showChordDiagrams={prefs?.showChordDiagrams ?? true}
+          />
         ) : effectiveMatch && content !== null ? (
           renderEntry(effectiveMatch, content, transposeOffset, prefs?.showChordDiagrams ?? true)
         ) : effectiveTrack ? (
@@ -492,4 +568,53 @@ function renderEntry(entry: LibraryEntry, content: string, transpose = 0, showCh
   if (entry.format === "chordpro") return <ChordProView source={content} transpose={transpose} showChordDiagrams={showChordDiagrams} />;
   if (entry.format === "ascii-tab") return <TabView kind="ascii" text={content} />;
   return <TabView kind="guitar-pro" src={`/api/library/raw/${encodeURIComponent(entry.id)}`} />;
+}
+
+type SplitViewProps = {
+  chordEntry: LibraryEntry;
+  chordContent: string | null;
+  tabEntry: LibraryEntry;
+  tabContent: string | null;
+  transposeOffset: number;
+  showChordDiagrams: boolean;
+};
+
+function SplitView({ chordEntry, chordContent, tabEntry, tabContent, transposeOffset, showChordDiagrams }: SplitViewProps) {
+  const loadingStyle = { color: "var(--ink-faint)", padding: "1rem" };
+
+  const chordPane = chordContent !== null
+    ? <ChordProView source={chordContent} transpose={transposeOffset} showChordDiagrams={showChordDiagrams} />
+    : <div style={loadingStyle}>Loading chords…</div>;
+
+  const tabPane = tabEntry.format === "guitar-pro"
+    ? <TabView kind="guitar-pro" src={`/api/library/raw/${encodeURIComponent(tabEntry.id)}`} />
+    : tabContent !== null
+      ? <TabView kind="ascii" text={tabContent} />
+      : <div style={loadingStyle}>Loading tab…</div>;
+
+  return (
+    <div className="flex flex-col md:grid md:grid-cols-2 md:gap-0">
+      <div
+        className="p-4 md:border-r"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <div
+          className="text-xs uppercase tracking-wide mb-3 pb-1"
+          style={{ color: "var(--ink-faint)", borderBottom: "1px solid var(--border)" }}
+        >
+          Chords &middot; {chordEntry.versionName ?? "Chord sheet"}
+        </div>
+        {chordPane}
+      </div>
+      <div className="p-4 border-t md:border-t-0" style={{ borderColor: "var(--border)" }}>
+        <div
+          className="text-xs uppercase tracking-wide mb-3 pb-1"
+          style={{ color: "var(--ink-faint)", borderBottom: "1px solid var(--border)" }}
+        >
+          Tab &middot; {tabEntry.versionName ?? "Tab"}
+        </div>
+        {tabPane}
+      </div>
+    </div>
+  );
 }

@@ -24,6 +24,7 @@ export async function PUT(req: NextRequest) {
     trackOverrides: body.trackOverrides ?? current.trackOverrides,
     songTranspose: body.songTranspose ?? current.songTranspose,
     preferredVersion: body.preferredVersion ?? current.preferredVersion,
+    splitView: body.splitView ?? current.splitView,
   };
   await writePrefs(cfg.dataPath, session.userId, merged);
   return NextResponse.json(merged);
