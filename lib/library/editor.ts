@@ -71,6 +71,14 @@ export async function setSpotifyTrackId(root: string, id: string, trackId: strin
   await writeEntry(root, id, updated);
 }
 
+export async function removeSpotifyTrackId(root: string, id: string): Promise<void> {
+  const full = safePath(root, id);
+  const current = await readFile(full, "utf8");
+  // Strip the directive and any trailing newline that followed it
+  const updated = current.replace(/\{\s*spotify_track_id\s*:\s*[^}]+\}\s*\n?/gi, "");
+  await writeEntry(root, id, updated);
+}
+
 export async function createEntry(root: string, input: CreateInput): Promise<string> {
   const folder = input.folder ?? "inbox";
   const ext = input.format === "guitar-pro" ? "gp" : input.format === "ascii-tab" ? "txt" : "pro";

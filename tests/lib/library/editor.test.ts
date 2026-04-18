@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { writeEntry, createEntry, safePath, setSpotifyTrackId, setVersionName } from "@/lib/library/editor";
+import { writeEntry, createEntry, safePath, setSpotifyTrackId, setVersionName, removeSpotifyTrackId } from "@/lib/library/editor";
 
 describe("editor", () => {
   let dir: string;
@@ -65,5 +65,26 @@ describe("editor", () => {
     const text = readFileSync(join(dir, "my-song2.pro"), "utf8");
     expect(text).toContain("{spotify_track_id: trk-new}");
     expect(text).not.toContain("trk-old");
+  });
+
+  it("removeSpotifyTrackId strips the directive and leaves other content intact", async () => {
+    const content = "{title: My Song}\n{artist: Some Artist}\n{spotify_track_id: trk-abc}\n\n[C]lyrics\n";
+    writeFileSync(join(dir, "remove-test.pro"), content);
+    await removeSpotifyTrackId(dir, "remove-test.pro");
+    const text = readFileSync(join(dir, "remove-test.pro"), "utf8");
+    expect(text).not.toContain("spotify_track_id");
+    expect(text).toContain("{title: My Song}");
+    expect(text).toContain("{artist: Some Artist}");
+    expect(text).toContain("[C]lyrics");
+  });
+
+  it("removeSpotifyTrackId is a no-op when no directive exists", async () => {
+    const content = "{title: My Song}\n{artist: Some Artist}\n\n[C]lyrics\n";
+    writeFileSync(join(dir, "no-directive.pro"), content);
+    await removeSpotifyTrackId(dir, "no-directive.pro");
+    const text = readFileSync(join(dir, "no-directive.pro"), "utf8");
+    expect(text).toContain("{title: My Song}");
+    expect(text).toContain("[C]lyrics");
+    expect(text).not.toContain("spotify_track_id");
   });
 });

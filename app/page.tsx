@@ -9,6 +9,7 @@ import { TabView } from "@/components/TabView";
 import { AutoScroller } from "@/components/AutoScroller";
 import { QuickAddForm } from "@/components/QuickAddForm";
 import { Editor } from "@/components/Editor";
+import { LibraryPicker } from "@/components/LibraryPicker";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { ShortcutsHelp } from "@/components/ShortcutsHelp";
 import type { LibraryEntry } from "@/lib/library/index";
@@ -49,6 +50,7 @@ export default function HomePage() {
   const [lastPlayed, setLastPlayed] = useState<LastPlayedTrack | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [duplicatingVersion, setDuplicatingVersion] = useState(false);
+  const [showLibraryPicker, setShowLibraryPicker] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { fetch("/api/prefs").then(r => r.json()).then(setPrefs); }, []);
@@ -207,6 +209,81 @@ export default function HomePage() {
     setPrefs(newPrefs as Prefs);
   }
 
+  async function removeMatch() {
+    if (!trackId) return;
+
+    // 1. Strip spotify_track_id from the library file if this match is bound to this track
+    if (matchResp?.match?.spotifyTrackId) {
+      await fetch(`/api/library/${encodeURIComponent(matchResp.match.id)}/spotify-track`, {
+        method: "DELETE",
+      }).catch(() => {});
+    }
+
+    // 2. Remove trackOverrides entry if set
+    if (prefs?.trackOverrides?.[trackId]) {
+      const newPrefs: Prefs = {
+        ...prefs,
+        trackOverrides: Object.fromEntries(
+          Object.entries(prefs.trackOverrides).filter(([k]) => k !== trackId)
+        ),
+      };
+      await fetch("/api/prefs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newPrefs),
+      });
+      setPrefs(newPrefs);
+    }
+
+    // 3. Dismiss client-side
+    setDismissedTrackId(trackId);
+  }
+
+  async function pickLibraryEntry(entry: LibraryEntry) {
+    if (!trackId) return;
+    setShowLibraryPicker(false);
+
+    // Save override in prefs
+    const newPrefs: Prefs = {
+      ...prefs!,
+      trackOverrides: { ...(prefs?.trackOverrides ?? {}), [trackId]: entry.id },
+    };
+    await fetch("/api/prefs", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newPrefs),
+    });
+    setPrefs(newPrefs);
+
+    // Bake directive into the file
+    await fetch(`/api/library/${encodeURIComponent(entry.id)}/spotify-track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trackId }),
+    }).catch(() => {});
+
+    // Clear dismissed state and refetch match
+    setDismissedTrackId(null);
+    if (effectiveTrack) {
+      const url = new URL("/api/library/match", window.location.origin);
+      url.searchParams.set("track_id", trackId);
+      url.searchParams.set("title", effectiveTrack.title);
+      url.searchParams.set("artist", effectiveTrack.artists.join(", "));
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = (await res.json()) as MatchResponse;
+        setMatchResp(data);
+        if (data.match) {
+          const r = await fetch(`/api/library/${encodeURIComponent(data.match.id)}`);
+          if (r.ok) {
+            const { content: c } = await r.json();
+            setContent(c);
+          }
+        }
+      }
+    }
+  }
+
   async function duplicateAsVersion() {
     if (!currentEntry) return;
     const versionName = window.prompt("Version name for the duplicate:", "Alternate");
@@ -305,10 +382,10 @@ export default function HomePage() {
             {matchResp?.confidence && (
               <>
                 <button
-                  onClick={() => setDismissedTrackId(trackId ?? null)}
+                  onClick={removeMatch}
                   className="px-2 py-1 rounded text-xs"
                   style={btnStyle}
-                  title="Not this song — show add form instead"
+                  title="Remove this match and let me add/pick another"
                 >
                   not this song
                 </button>
@@ -374,11 +451,28 @@ export default function HomePage() {
         ) : effectiveMatch && content !== null ? (
           renderEntry(effectiveMatch, content, transposeOffset, prefs?.showChordDiagrams ?? true)
         ) : effectiveTrack ? (
-          <QuickAddForm track={effectiveTrack} onCreated={() => { /* next poll refetches */ }} />
+          <div>
+            <QuickAddForm track={effectiveTrack} onCreated={() => { /* next poll refetches */ }} />
+            <div className="px-4 pb-4">
+              <button
+                onClick={() => setShowLibraryPicker(true)}
+                className="px-3 py-1.5 rounded text-sm"
+                style={btnStyle}
+              >
+                Or pick an existing sheet from the library
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="p-4" style={{ color: "var(--ink-muted)" }}>Waiting for Spotify…</div>
         )}
       </div>
+      {showLibraryPicker && (
+        <LibraryPicker
+          onPick={pickLibraryEntry}
+          onClose={() => setShowLibraryPicker(false)}
+        />
+      )}
       {np.data && prefs && (
         <AutoScroller
           enabled={prefs.autoScroll && !editing}
