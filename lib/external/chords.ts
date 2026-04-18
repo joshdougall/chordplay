@@ -6,12 +6,28 @@ import { readCached, writeCached } from "./cache";
 import type { ExternalChords, ChordProvider } from "./provider";
 import { logger } from "@/lib/logger";
 
+// Providers tried in order. Disabled providers are commented-out rather than
+// removed so we can re-enable once we figure out a working strategy.
+//
+// Status notes (2026-04-18):
+//   - chordie: works, narrow catalog (lots of misses for mainstream pop/country)
+//   - ultimate-guitar: UG is now a full SPA, content is fetched client-side
+//     via authenticated XHR after page load. Server-side HTML has no bootstrap.
+//     Even with flaresolverr giving us a 200, there's nothing to parse. Disabled.
+//   - chordify: heavy JS render, our markdown-extraction is unreliable. Disabled.
+//   - e-chords: Cloudflare managed challenge blocks flaresolverr too. Disabled.
 export const PROVIDERS: ChordProvider[] = [
-  ChordieProvider,        // fast, no auth
-  UltimateGuitarProvider, // firecrawl, best catalog
-  ChordifyProvider,       // firecrawl, broad coverage
-  EChordsProvider,        // cloudflare-blocked but keep for future
+  ChordieProvider,
+  // UltimateGuitarProvider,  // see note above
+  // ChordifyProvider,
+  // EChordsProvider,
 ];
+
+// Keep imports referenced so unused-import lints don't fire (providers not currently
+// in the chain are still imported for potential re-enable).
+void UltimateGuitarProvider;
+void ChordifyProvider;
+void EChordsProvider;
 
 function norm(s: string) {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
