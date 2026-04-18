@@ -57,6 +57,10 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
   const [fetchingChords, setFetchingChords] = useState(false);
   // Edit mode: when false, render preview. Default false when auto-fill succeeds, true when user starts typing.
   const [editMode, setEditMode] = useState(!initialTrack);
+  // Live transpose in preview mode (not persisted — user can save transposed or original content)
+  const [transpose, setTranspose] = useState(0);
+  // Reset transpose when track changes
+  useEffect(() => { setTranspose(0); }, [track?.trackId]);
 
   useEffect(() => {
     if (!track?.title) return;
@@ -206,6 +210,27 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
             </div>
           </div>
           {hasPreviewableContent && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setTranspose(t => t - 1)}
+                className="w-7 h-7 rounded text-sm"
+                style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}
+                aria-label="Transpose down"
+              >−</button>
+              <span className="w-8 text-center tabular-nums text-xs" style={{ color: "var(--ink-muted)" }}>
+                {transpose > 0 ? `+${transpose}` : transpose === 0 ? "±0" : `${transpose}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => setTranspose(t => t + 1)}
+                className="w-7 h-7 rounded text-sm"
+                style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}
+                aria-label="Transpose up"
+              >+</button>
+            </div>
+          )}
+          {hasPreviewableContent && (
             <button
               type="button"
               onClick={() => setEditMode(true)}
@@ -234,7 +259,7 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
       {/* Preview: rendered chord sheet */}
       {hasPreviewableContent && (
         <div className="rounded" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
-          <ChordProView source={content} />
+          <ChordProView source={content} transpose={transpose} />
         </div>
       )}
 
