@@ -8,6 +8,8 @@ import { Editor } from "@/components/Editor";
 import { useTranspose } from "@/hooks/useTranspose";
 import type { LibraryEntry } from "@/lib/library/index";
 import type { Prefs } from "@/lib/prefs/store";
+import { OverflowMenu } from "@/components/OverflowMenu";
+import { Skeleton } from "@/components/Skeleton";
 
 type EntryResponse = { entry: LibraryEntry; content: string };
 
@@ -149,7 +151,24 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
   }
 
   if (loading) return (
-    <div className="p-8 text-neutral-400">Loading…</div>
+    <div className="flex flex-col h-full">
+      <div className="p-2 flex items-center gap-3 border-b border-neutral-800">
+        <Skeleton style={{ height: "1rem", width: "30%" }} />
+        <Skeleton style={{ height: "1rem", width: "20%", marginLeft: "auto" }} />
+      </div>
+      <div className="flex-1 p-6 flex flex-col gap-4">
+        <div className="flex gap-3 flex-wrap pb-4" style={{ borderBottom: "1px solid var(--border)" }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} style={{ height: "2rem", width: "3.5rem" }} />
+          ))}
+        </div>
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} style={{ height: "1rem", width: `${70 + (i % 3) * 10}%` }} />
+          ))}
+        </div>
+      </div>
+    </div>
   );
   if (error || !data) return (
     <div className="p-8">
@@ -190,30 +209,41 @@ export default function LibraryEntryPage({ params }: { params: Promise<{ id: str
         )}
         {!editing && (
           <>
-            <button
-              onClick={() => setEditing(true)}
-              className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 shrink-0"
-            >
-              Edit
-            </button>
-            <button
-              onClick={handleDuplicate}
-              disabled={duplicating}
-              className="px-2 py-1 rounded text-xs shrink-0 transition-colors disabled:opacity-50"
-              style={{ backgroundColor: "var(--bg-surface)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}
-              title="Duplicate as a new version"
-            >
-              {duplicating ? "Duplicating…" : "Duplicate version"}
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="px-2 py-1 rounded text-xs shrink-0 transition-colors disabled:opacity-50"
-              style={{ backgroundColor: "var(--bg-surface)", color: "var(--danger)", border: "1px solid var(--border)" }}
-              title="Delete this sheet"
-            >
-              {deleting ? "Deleting…" : "Delete"}
-            </button>
+            {/* Desktop: inline secondary actions */}
+            <div className="hidden md:flex items-center gap-2">
+              <button
+                onClick={() => setEditing(true)}
+                className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 shrink-0"
+              >
+                Edit
+              </button>
+              <button
+                onClick={handleDuplicate}
+                disabled={duplicating}
+                className="px-2 py-1 rounded text-xs shrink-0 transition-colors disabled:opacity-50"
+                style={{ backgroundColor: "var(--bg-surface)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}
+                title="Duplicate as a new version"
+              >
+                {duplicating ? "Duplicating…" : "Duplicate version"}
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-2 py-1 rounded text-xs shrink-0 transition-colors disabled:opacity-50"
+                style={{ backgroundColor: "var(--bg-surface)", color: "var(--danger)", border: "1px solid var(--border)" }}
+                title="Delete this sheet"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+            {/* Mobile: overflow menu */}
+            <div className="flex md:hidden shrink-0">
+              <OverflowMenu items={[
+                { label: "Edit", onClick: () => setEditing(true) },
+                { label: duplicating ? "Duplicating…" : "Duplicate version", onClick: handleDuplicate, disabled: duplicating },
+                { label: deleting ? "Deleting…" : "Delete", onClick: handleDelete, disabled: deleting, danger: true },
+              ]} />
+            </div>
           </>
         )}
       </div>

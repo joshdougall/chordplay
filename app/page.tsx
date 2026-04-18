@@ -11,6 +11,7 @@ import { QuickAddForm } from "@/components/QuickAddForm";
 import { Editor } from "@/components/Editor";
 import { LibraryPicker } from "@/components/LibraryPicker";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { OverflowMenu } from "@/components/OverflowMenu";
 import { ShortcutsHelp } from "@/components/ShortcutsHelp";
 import type { LibraryEntry } from "@/lib/library/index";
 import type { Prefs } from "@/lib/prefs/store";
@@ -216,6 +217,13 @@ export default function HomePage() {
     await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
   }
 
+  async function setAutoScrollSpeed(speed: number) {
+    if (!prefs) return;
+    const next = { ...prefs, autoScrollSpeed: speed };
+    setPrefs(next);
+    await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
+  }
+
   async function toggleSplitView() {
     if (!prefs || !songKey) return;
     const next = !splitView;
@@ -405,16 +413,33 @@ export default function HomePage() {
         </div>
       )}
       <div className="p-2 flex items-center gap-3 text-sm flex-wrap" style={{ borderBottom: "1px solid var(--border)" }}>
+        {/* Primary: auto-scroll (always inline) */}
         <label className="flex items-center gap-2" style={{ color: "var(--ink-muted)" }}>
           <input type="checkbox" checked={prefs?.autoScroll ?? false} onChange={toggleAutoScroll} />
           Auto-scroll
         </label>
-        {canSplit && effectiveMatch && (
-          <label className="flex items-center gap-2" style={{ color: splitView ? "var(--accent)" : "var(--ink-muted)" }}>
-            <input type="checkbox" checked={splitView} onChange={toggleSplitView} />
-            Split view
-          </label>
+        {prefs?.autoScroll && (
+          <div className="flex items-center gap-1">
+            {([0.5, 1, 1.5, 2] as const).map(speed => {
+              const active = (prefs.autoScrollSpeed ?? 1) === speed;
+              return (
+                <button
+                  key={speed}
+                  onClick={() => setAutoScrollSpeed(speed)}
+                  className="px-2 py-0.5 rounded text-xs transition-colors"
+                  style={active
+                    ? { backgroundColor: "var(--accent)", color: "var(--bg)" }
+                    : { backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }
+                  }
+                  title={`${speed}× speed`}
+                >
+                  {speed}×
+                </button>
+              );
+            })}
+          </div>
         )}
+        {/* Primary: transpose (always inline when visible) */}
         {effectiveMatch && (effectiveMatch.format === "chordpro" || (splitView && chordEntry)) && (
           <div className="flex items-center gap-1">
             <button
@@ -441,47 +466,69 @@ export default function HomePage() {
             )}
           </div>
         )}
+        {/* Fuzzy confidence indicator (always inline, informational) */}
+        {effectiveMatch && matchResp?.confidence === "fuzzy" && (
+          <span style={{ color: "var(--ink-faint)" }}>
+            (fuzzy {Math.round((matchResp.score ?? 0) * 100)}%)
+          </span>
+        )}
+        {/* Secondary actions: inline on desktop, overflow menu on mobile */}
         {effectiveMatch && (
           <>
-            {matchResp?.confidence === "fuzzy" && (
-              <span style={{ color: "var(--ink-faint)" }}>
-                (fuzzy {Math.round((matchResp.score ?? 0) * 100)}%)
-              </span>
-            )}
-            {matchResp?.confidence && (
-              <>
-                <button
-                  onClick={removeMatch}
-                  className="px-2 py-1 rounded text-xs"
-                  style={btnStyle}
-                  title="Remove this match and let me add/pick another"
-                >
-                  not this song
-                </button>
-                {matchResp?.confidence === "fuzzy" && (
+            {/* Desktop: inline secondary actions */}
+            <div className="hidden md:flex items-center gap-3">
+              {canSplit && (
+                <label className="flex items-center gap-2 cursor-pointer" style={{ color: splitView ? "var(--accent)" : "var(--ink-muted)" }}>
+                  <input type="checkbox" checked={splitView} onChange={toggleSplitView} />
+                  Split view
+                </label>
+              )}
+              {matchResp?.confidence && (
+                <>
                   <button
-                    onClick={lockFuzzyMatch}
+                    onClick={removeMatch}
                     className="px-2 py-1 rounded text-xs"
-                    style={{ ...btnStyle, color: "var(--accent)" }}
-                    title="Confirm this is the correct match"
+                    style={btnStyle}
+                    title="Remove this match and let me add/pick another"
                   >
-                    Use this
+                    not this song
                   </button>
-                )}
-              </>
-            )}
-            <button onClick={() => setEditing(true)} className="px-2 py-1 rounded" style={btnStyle}>
-              Edit
-            </button>
-            <button
-              onClick={duplicateAsVersion}
-              disabled={duplicatingVersion}
-              className="px-2 py-1 rounded text-xs disabled:opacity-40"
-              style={btnStyle}
-              title="Duplicate as a new version"
-            >
-              {duplicatingVersion ? "Duplicating…" : "Duplicate version"}
-            </button>
+                  {matchResp?.confidence === "fuzzy" && (
+                    <button
+                      onClick={lockFuzzyMatch}
+                      className="px-2 py-1 rounded text-xs"
+                      style={{ ...btnStyle, color: "var(--accent)" }}
+                      title="Confirm this is the correct match"
+                    >
+                      Use this
+                    </button>
+                  )}
+                </>
+              )}
+              <button onClick={() => setEditing(true)} className="px-2 py-1 rounded" style={btnStyle}>
+                Edit
+              </button>
+              <button
+                onClick={duplicateAsVersion}
+                disabled={duplicatingVersion}
+                className="px-2 py-1 rounded text-xs disabled:opacity-40"
+                style={btnStyle}
+                title="Duplicate as a new version"
+              >
+                {duplicatingVersion ? "Duplicating…" : "Duplicate version"}
+              </button>
+            </div>
+            {/* Mobile: overflow menu */}
+            <div className="flex md:hidden">
+              <OverflowMenu items={[
+                ...(canSplit ? [{ label: splitView ? "Disable split view" : "Enable split view", onClick: toggleSplitView }] : []),
+                { label: "Edit", onClick: () => setEditing(true) },
+                { label: duplicatingVersion ? "Duplicating…" : "Duplicate version", onClick: duplicateAsVersion, disabled: duplicatingVersion },
+                ...(matchResp?.confidence ? [{ label: "Not this song", onClick: removeMatch }] : []),
+                ...(matchResp?.confidence === "fuzzy" ? [{ label: "Use this match", onClick: lockFuzzyMatch }] : []),
+                { label: "Pick from library", onClick: () => setShowLibraryPicker(true) },
+              ]} />
+            </div>
           </>
         )}
         <button
@@ -542,7 +589,10 @@ export default function HomePage() {
             </div>
           </div>
         ) : (
-          <div className="p-4" style={{ color: "var(--ink-muted)" }}>Waiting for Spotify…</div>
+          <div className="p-8 flex flex-col items-center gap-4 text-center" style={{ color: "var(--ink-muted)" }}>
+            <div className="text-3xl" style={{ animation: "skeleton-pulse 2s ease-in-out infinite" }}>♪</div>
+            <p className="text-sm max-w-xs">Press play on Spotify — chords will appear here automatically.</p>
+          </div>
         )}
       </div>
       {showLibraryPicker && (
@@ -556,6 +606,7 @@ export default function HomePage() {
           enabled={prefs.autoScroll && !editing}
           progressMs={np.data.progressMs}
           durationMs={np.data.durationMs}
+          speedMultiplier={prefs.autoScrollSpeed ?? 1}
           targetRef={scrollRef}
         />
       )}
