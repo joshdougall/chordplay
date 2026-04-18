@@ -51,6 +51,8 @@ export default function HomePage() {
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [duplicatingVersion, setDuplicatingVersion] = useState(false);
   const [showLibraryPicker, setShowLibraryPicker] = useState(false);
+  // Bump to force a refetch of the library match (e.g., after saving a new sheet from QuickAddForm)
+  const [matchRefetch, setMatchRefetch] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { fetch("/api/prefs").then(r => r.json()).then(setPrefs); }, []);
@@ -135,7 +137,7 @@ export default function HomePage() {
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackId]);
+  }, [trackId, matchRefetch]);
 
   // Load content when version is explicitly selected
   useEffect(() => {
@@ -452,7 +454,7 @@ export default function HomePage() {
           renderEntry(effectiveMatch, content, transposeOffset, prefs?.showChordDiagrams ?? true)
         ) : effectiveTrack ? (
           <div>
-            <QuickAddForm track={effectiveTrack} onCreated={() => { /* next poll refetches */ }} />
+            <QuickAddForm track={effectiveTrack} onCreated={() => { setDismissedTrackId(null); setMatchRefetch(n => n + 1); }} />
             <div className="px-4 pb-4">
               <button
                 onClick={() => setShowLibraryPicker(true)}
