@@ -13,6 +13,11 @@ export function normalizeForValidation(s: string): string {
   n = n.replace(/\s+band$/i, "");
   // Strip common feat/ft markers (fallback; cleanArtistForSearch should have done this already)
   n = n.replace(/\s+(?:feat\.?|ft\.?|featuring)\s.*$/i, "");
+  // Strip parenthetical/bracketed qualifiers (Acoustic), [Remastered], etc. Keeps
+  // "Creep (Acoustic)" validating against "Creep".
+  n = n.replace(/\s*[([][^)\]]*[)\]]/g, " ");
+  // Strip trailing " - <qualifier>" suffixes (Remastered 2015, Bonus Track, Live...)
+  n = n.replace(/\s*-\s*(?:feat\.?|ft\.?|live|acoustic|remix|remastered(?:\s+\d{4})?|remaster|edit|version|deluxe(?:\s+edition)?|bonus\s+track|extended(?:\s+version)?|radio\s+edit|original|studio|demo|instrumental|karaoke|single\s+version|mono\s+version|stereo|\d{4}\s+remaster).*$/gi, "");
   // Collapse punctuation to spaces
   n = n.replace(/[^\p{L}\p{N}\s]/gu, " ");
   // Collapse whitespace
