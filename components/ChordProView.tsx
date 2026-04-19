@@ -5,6 +5,7 @@ import { ChordProParser, HtmlDivFormatter } from "chordsheetjs";
 import type { Song } from "chordsheetjs";
 import { ChordDiagram } from "@/components/ChordDiagram";
 import { detectKey, capoSuggestion, normalizeChordRoot } from "@/lib/music/key-detection";
+import { stripMetaPreamble } from "@/lib/chordpro/strip-meta";
 
 const CHROMATIC_KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -56,7 +57,8 @@ export function ChordProView({
 }) {
   const { html, uniqueChords, keyLabel, capo } = useMemo(() => {
     try {
-      const song = new ChordProParser().parse(source);
+      const stripped = stripMetaPreamble(source);
+      const song = new ChordProParser().parse(stripped);
       const transposed = transpose ? song.transpose(transpose) : song;
 
       const directiveMatch = source.match(/\{\s*key\s*:\s*([^}]+)\}/i);
@@ -85,14 +87,15 @@ export function ChordProView({
     }
   }, [source, transpose, showChordDiagrams]);
 
-  const paletteRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
 
   // Click a chord in the sheet → scroll its palette diagram into view and pulse it.
+  // Queries [data-chord] from the root so both mobile and desktop palettes work.
   useEffect(() => {
-    if (!sheetRef.current || !paletteRef.current) return;
+    if (!sheetRef.current || !rootRef.current) return;
     const sheet = sheetRef.current;
-    const palette = paletteRef.current;
+    const root = rootRef.current;
 
     const chordEls = sheet.querySelectorAll<HTMLElement>(".chord");
     const listeners: Array<[HTMLElement, EventListener]> = [];
@@ -105,7 +108,9 @@ export function ChordProView({
       el.setAttribute("tabindex", "0");
       const handler: EventListener = (ev) => {
         ev.preventDefault();
-        const target = palette.querySelector<HTMLElement>(`[data-chord="${CSS.escape(name)}"]`);
+        // On mobile the palette is the horizontal strip; on desktop it's the rail.
+        // querySelector finds whichever is visible first in DOM order.
+        const target = root.querySelector<HTMLElement>(`[data-chord="${CSS.escape(name)}"]`);
         if (!target) return;
         target.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
         target.classList.remove("chord-pulse");
@@ -129,7 +134,7 @@ export function ChordProView({
   }, [html]);
 
   return (
-    <div>
+    <div ref={rootRef}>
       {keyLabel && (
         <div className="mb-2 text-xs uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>
           {capo
@@ -137,28 +142,48 @@ export function ChordProView({
             : `Key · ${keyLabel}`}
         </div>
       )}
-      {showChordDiagrams && uniqueChords.length > 0 && (
-        <div
-          ref={paletteRef}
-          className="chord-palette sticky top-0 z-10 flex gap-3 overflow-x-auto py-2 mb-3"
-          style={{
-            borderBottom: "1px solid var(--border)",
-            backgroundColor: "var(--bg)",
-          }}
-          aria-label="Chord diagrams"
-        >
-          {uniqueChords.map(c => (
-            <div key={c} data-chord={c} className="shrink-0 transition-transform">
-              <ChordDiagram name={c} size="sm" />
+      <div className="md:flex md:flex-row md:gap-4">
+        <div className="flex-1 min-w-0">
+          {showChordDiagrams && uniqueChords.length > 0 && (
+            /* Mobile: top-sticky horizontal scroll palette */
+            <div
+              className="md:hidden chord-palette sticky top-0 z-10 flex gap-3 overflow-x-auto py-2 mb-3"
+              style={{
+                borderBottom: "1px solid var(--border)",
+                backgroundColor: "var(--bg)",
+              }}
+              aria-label="Chord diagrams"
+            >
+              {uniqueChords.map(c => (
+                <div key={c} data-chord={c} className="shrink-0 transition-transform">
+                  <ChordDiagram name={c} size="sm" />
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+          <div
+            ref={sheetRef}
+            className="chordpro prose prose-invert max-w-none font-mono"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
         </div>
-      )}
-      <div
-        ref={sheetRef}
-        className="chordpro prose prose-invert max-w-none font-mono"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+        {showChordDiagrams && uniqueChords.length > 0 && (
+          /* Desktop: right rail, vertical stack, sticky */
+          <aside className="hidden md:block md:w-[140px] md:flex-shrink-0">
+            <div
+              className="sticky top-0 flex flex-col gap-3 pl-3 py-2"
+              style={{ borderLeft: "1px solid var(--border)" }}
+              aria-label="Chord diagrams"
+            >
+              {uniqueChords.map(c => (
+                <div key={c} data-chord={c}>
+                  <ChordDiagram name={c} size="sm" />
+                </div>
+              ))}
+            </div>
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
