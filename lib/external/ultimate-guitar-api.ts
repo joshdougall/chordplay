@@ -14,6 +14,7 @@
 import { createHash } from "crypto";
 import type { ChordProvider, ExternalChords } from "./provider";
 import { logger } from "@/lib/logger";
+import { cleanTitleForSearch, cleanArtistForSearch } from "./clean-title";
 
 export const UG_API_ID = "ultimate-guitar-api";
 export const UG_API_NAME = "Ultimate Guitar";
@@ -141,12 +142,24 @@ export async function fetchUGApiChords(
   artist: string,
   title: string
 ): Promise<ExternalChords | null> {
-  let tabs: UGTab[];
-  try {
-    tabs = await searchTabs(artist, title);
-  } catch (err) {
-    logger.warn({ err, artist, title }, "ug-api search failed");
-    return null;
+  const cleanTitle = cleanTitleForSearch(title);
+  const cleanArtist = cleanArtistForSearch(artist);
+
+  // First try as-is, fall back to cleaned query on any error (404 common for titles with " - Bonus Track" etc).
+  const attempts: Array<{ a: string; t: string }> = [];
+  attempts.push({ a: artist, t: title });
+  if (cleanTitle !== title || cleanArtist !== artist) {
+    attempts.push({ a: cleanArtist, t: cleanTitle });
+  }
+
+  let tabs: UGTab[] = [];
+  for (const { a, t } of attempts) {
+    try {
+      tabs = await searchTabs(a, t);
+      if (tabs.length > 0) break;
+    } catch (err) {
+      logger.warn({ err, artist: a, title: t }, "ug-api search failed, trying next variation");
+    }
   }
 
   if (tabs.length === 0) {

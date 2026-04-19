@@ -8,6 +8,7 @@ import { AzChordsProvider } from "./azchords";
 import { GuitarTabsCcProvider } from "./guitartabs";
 import { GuitareTabProvider } from "./guitaretab";
 import { readCached, writeCached } from "./cache";
+import { cleanTitleForSearch, cleanArtistForSearch } from "./clean-title";
 import type { ExternalChords, ChordProvider } from "./provider";
 import { logger } from "@/lib/logger";
 
@@ -62,10 +63,18 @@ export function _resetCacheForTest(): void {
 }
 
 export async function findChords(
-  artist: string,
-  title: string,
+  rawArtist: string,
+  rawTitle: string,
   providers: ChordProvider[] = PROVIDERS
 ): Promise<ExternalChords | null> {
+  // Strip Spotify-style suffixes ("- Remastered 2015", "(feat. X)", "- Bonus Track",
+  // etc.) before calling providers. The underlying song is what we want;
+  // providers + validators should see the clean title.
+  const title = cleanTitleForSearch(rawTitle);
+  const artist = cleanArtistForSearch(rawArtist);
+  if (title !== rawTitle || artist !== rawArtist) {
+    logger.info({ rawArtist, rawTitle, artist, title }, "normalized external query");
+  }
   const normArtist = norm(artist);
   const normTitle = norm(title);
   const isTest = process.env.NODE_ENV === "test";
