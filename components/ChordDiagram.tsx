@@ -5,6 +5,12 @@ import { lookupChord } from "@/lib/chord-diagrams/chord-lookup";
 
 const SIZE_MAP = { sm: 90, md: 120, lg: 180 } as const;
 
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string)
+  );
+}
+
 export function ChordDiagram({
   name,
   size = "md",
@@ -27,7 +33,22 @@ export function ChordDiagram({
       if (cancelled || !container) return;
 
       if (!chord) {
-        container.innerHTML = `<div style="font-size:0.7rem;color:var(--ink-faint);text-align:center;padding:4px 2px">${name}</div>`;
+        container.innerHTML = `
+          <div class="chord-diagram-placeholder" style="
+            width: ${width}px;
+            height: ${Math.round(width * 1.15)}px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 0.25rem;
+            border: 1px dashed var(--border);
+            border-radius: 6px;
+            padding: 0.5rem;
+            color: var(--ink-faint);
+            box-sizing: border-box;
+          ">
+            <div style="font-weight: 600; color: var(--accent);">${escapeHtml(name)}</div>
+            <div style="font-size: 0.65rem; color: var(--ink-faint); text-align: center;">no diagram</div>
+          </div>
+        `;
         return;
       }
 
