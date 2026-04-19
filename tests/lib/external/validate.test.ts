@@ -83,6 +83,26 @@ describe("validateResult", () => {
     ).toBe(false);
   });
 
+  it("rejects Tucker Wetmore → Marshall Tucker Band false match", () => {
+    expect(
+      validateResult(
+        { artist: "Tucker Wetmore", title: "Wind Up Missin' You" },
+        { artist: "Marshall Tucker Band", title: "1979" },
+        "test-provider"
+      )
+    ).toBe(false);
+  });
+
+  it("accepts covers with matching artist (same artist, exact title)", () => {
+    expect(
+      validateResult(
+        { artist: "Radiohead", title: "Creep" },
+        { artist: "Radiohead", title: "Creep (Acoustic)" },
+        "test-provider"
+      )
+    ).toBe(true);
+  });
+
   it("is case-insensitive", () => {
     expect(
       validateResult(

@@ -15,6 +15,7 @@ import { createHash } from "crypto";
 import type { ChordProvider, ExternalChords } from "./provider";
 import { logger } from "@/lib/logger";
 import { cleanTitleForSearch, cleanArtistForSearch } from "./clean-title";
+import { validateResult } from "./validate";
 
 export const UG_API_ID = "ultimate-guitar-api";
 export const UG_API_NAME = "Ultimate Guitar";
@@ -166,9 +167,29 @@ export async function fetchUGApiChords(
     return null;
   }
 
-  // Pick highest-rated result
+  // Sort by rating, then iterate until we find one that validates against the requested title+artist
   tabs.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-  const best = tabs[0];
+
+  // Validate against the CLEAN versions so "(feat. X)" suffix differences don't punish good matches
+  const requestedForValidation = { artist: cleanArtist, title: cleanTitle };
+
+  const validTabs = tabs.filter(t =>
+    validateResult(
+      requestedForValidation,
+      { artist: t.artist_name ?? "", title: t.song_name ?? "" },
+      UG_API_ID
+    )
+  );
+
+  if (validTabs.length === 0) {
+    logger.info(
+      { provider: UG_API_ID, artist, title, searchedCount: tabs.length, topResult: { artist: tabs[0]?.artist_name, title: tabs[0]?.song_name } },
+      "ug-api: no search results validated against requested artist/title"
+    );
+    return null;
+  }
+
+  const best = validTabs[0];
 
   let tabInfo: UGTabInfoResponse;
   try {
