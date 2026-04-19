@@ -1,7 +1,9 @@
 import { ChordieProvider } from "./chordie";
 import { UltimateGuitarProvider } from "./ultimate-guitar";
+import { UltimateGuitarApiProvider } from "./ultimate-guitar-api";
 import { ChordifyProvider } from "./chordify";
 import { EChordsProvider } from "./e-chords";
+import { SongsterrProvider } from "./songsterr";
 import { readCached, writeCached } from "./cache";
 import type { ExternalChords, ChordProvider } from "./provider";
 import { logger } from "@/lib/logger";
@@ -9,16 +11,23 @@ import { logger } from "@/lib/logger";
 // Providers tried in order. Disabled providers are commented-out rather than
 // removed so we can re-enable once we figure out a working strategy.
 //
-// Status notes (2026-04-18):
+// Status notes (2026-04-19):
 //   - chordie: works, narrow catalog (lots of misses for mainstream pop/country)
-//   - ultimate-guitar: UG is now a full SPA, content is fetched client-side
-//     via authenticated XHR after page load. Server-side HTML has no bootstrap.
-//     Even with flaresolverr giving us a 200, there's nothing to parse. Disabled.
+//   - ultimate-guitar-api: UG unofficial mobile API — no scraping, pure JSON.
+//     Signs requests with MD5(deviceId + "YYYY-MM-DD:H" + "createLog()").
+//     No account or API key required; works as of 2026-04-19.
+//   - ultimate-guitar (HTML scraper): UG is a full SPA, server-side HTML has no
+//     bootstrap even with flaresolverr. Superseded by ultimate-guitar-api. Disabled.
 //   - chordify: heavy JS render, our markdown-extraction is unreliable. Disabled.
 //   - e-chords: Cloudflare managed challenge blocks flaresolverr too. Disabled.
+//   - songsterr: clean public JSON API. Tab data is GP5 binary (out of scope to
+//     parse for v1), so we return a stub linking out to the Songsterr viewer.
+//     Listed last — prefer real chord content from other providers first.
 export const PROVIDERS: ChordProvider[] = [
   ChordieProvider,
-  // UltimateGuitarProvider,  // see note above
+  UltimateGuitarApiProvider,
+  SongsterrProvider,
+  // UltimateGuitarProvider,  // see note above — superseded by UltimateGuitarApiProvider
   // ChordifyProvider,
   // EChordsProvider,
 ];
