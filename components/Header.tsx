@@ -66,7 +66,12 @@ function ChordGlyph({ size = 24 }: { size?: number }) {
 
 export function Header() {
   const path = usePathname();
-  const [auth, setAuth] = useState<{ authenticated: boolean; userId?: string } | null>(null);
+  const [auth, setAuth] = useState<{
+    authenticated: boolean;
+    userId?: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/status")
@@ -126,8 +131,21 @@ export function Header() {
         </nav>
       )}
       <div className="ml-auto flex items-center gap-3 text-sm">
-        {authed && auth?.userId && (
-          <span style={{ color: "var(--ink-faint)" }}>{auth.userId}</span>
+        {authed && (
+          <div className="flex items-center gap-2">
+            {auth?.avatarUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={auth.avatarUrl}
+                alt=""
+                className="w-7 h-7 rounded-full object-cover shrink-0"
+                style={{ border: "1px solid var(--border)" }}
+              />
+            )}
+            {(auth?.displayName || auth?.userId) && (
+              <span style={{ color: "var(--ink-faint)" }}>{auth.displayName || auth.userId}</span>
+            )}
+          </div>
         )}
         {authed && <ReportIssueButton />}
         {authed && (
