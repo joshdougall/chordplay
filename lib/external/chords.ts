@@ -4,6 +4,9 @@ import { UltimateGuitarApiProvider } from "./ultimate-guitar-api";
 import { ChordifyProvider } from "./chordify";
 import { EChordsProvider } from "./e-chords";
 import { SongsterrProvider } from "./songsterr";
+import { AzChordsProvider } from "./azchords";
+import { GuitarTabsCcProvider } from "./guitartabs";
+import { GuitareTabProvider } from "./guitaretab";
 import { readCached, writeCached } from "./cache";
 import type { ExternalChords, ChordProvider } from "./provider";
 import { logger } from "@/lib/logger";
@@ -13,6 +16,9 @@ import { logger } from "@/lib/logger";
 //
 // Status notes (2026-04-19):
 //   - chordie: works, narrow catalog (lots of misses for mainstream pop/country)
+//   - azchords: plain HTML, broad catalog, navigates letter pages to find artist
+//   - guitartabs-cc: plain HTML, older catalog (~2000s), direct URL construction
+//   - guitaretab: plain HTML, moderate catalog, artist-page navigation
 //   - ultimate-guitar-api: UG unofficial mobile API — no scraping, pure JSON.
 //     Signs requests with MD5(deviceId + "YYYY-MM-DD:H" + "createLog()").
 //     No account or API key required; works as of 2026-04-19.
@@ -25,6 +31,9 @@ import { logger } from "@/lib/logger";
 //     Listed last — prefer real chord content from other providers first.
 export const PROVIDERS: ChordProvider[] = [
   ChordieProvider,
+  AzChordsProvider,
+  GuitarTabsCcProvider,
+  GuitareTabProvider,
   UltimateGuitarApiProvider,
   SongsterrProvider,
   // UltimateGuitarProvider,  // see note above — superseded by UltimateGuitarApiProvider
