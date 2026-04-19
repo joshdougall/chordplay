@@ -3,9 +3,12 @@ import { getConfig } from "@/lib/config";
 import { getAccessToken } from "@/lib/auth/spotify";
 import { getSession } from "@/lib/auth/session";
 import { makeNowPlayingCache, type NowPlaying } from "@/lib/spotify/now-playing-cache";
+import { recordEvent } from "@/lib/usage/db";
 
 type NowPlayingCacheEntry = ReturnType<typeof makeNowPlayingCache>;
 const caches = new Map<string, NowPlayingCacheEntry>();
+// Track last seen trackId per user to avoid flooding on every 2s poll
+const lastSeenTrack = new Map<string, string>();
 
 function getCacheForUser(userId: string): NowPlayingCacheEntry {
   let c = caches.get(userId);
@@ -46,6 +49,21 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   try {
     const np = await getCacheForUser(session.userId).get();
+    if (np?.trackId) {
+      const last = lastSeenTrack.get(session.userId);
+      if (last !== np.trackId) {
+        lastSeenTrack.set(session.userId, np.trackId);
+        try {
+          recordEvent(session.userId, "play", {
+            trackId: np.trackId,
+            title: np.title,
+            artist: np.artists.join(", "),
+            albumArt: np.albumArt,
+            durationMs: np.durationMs,
+          });
+        } catch { /* non-fatal */ }
+      }
+    }
     return NextResponse.json(np);
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 502 });

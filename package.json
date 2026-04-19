@@ -16,6 +16,7 @@
   "dependencies": {
     "@coderline/alphatab": "^1.4.1",
     "@tombatossals/chords-db": "^0.5.1",
+    "better-sqlite3": "^12.9.0",
     "chokidar": "^3.6.0",
     "chordsheetjs": "^12.0.0",
     "franc-min": "^6.2.0",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

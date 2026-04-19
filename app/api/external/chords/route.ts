@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findChords } from "@/lib/external/chords";
 import { withReqId } from "@/lib/logger";
+import { getSession } from "@/lib/auth/session";
+import { recordEvent } from "@/lib/usage/db";
 
 export async function GET(req: NextRequest) {
   const reqId = req.headers.get("x-request-id") ?? crypto.randomUUID();
   const log = withReqId(reqId);
+  const session = await getSession();
 
   const url = new URL(req.url);
   const title = url.searchParams.get("title")?.trim();
@@ -24,5 +27,15 @@ export async function GET(req: NextRequest) {
   }
 
   log.info({ artist, title, source: result.source }, "external chords response: match found");
+  if (session) {
+    try {
+      recordEvent(session.userId, "match", {
+        title,
+        artist: artist ?? null,
+        outcome: "hit",
+        source: result.source,
+      });
+    } catch { /* non-fatal */ }
+  }
   return NextResponse.json({ match: result });
 }

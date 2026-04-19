@@ -4,6 +4,7 @@ import { match } from "@/lib/library/matcher";
 import { readPrefs } from "@/lib/prefs/store";
 import { getConfig } from "@/lib/config";
 import { getSession } from "@/lib/auth/session";
+import { recordEvent } from "@/lib/usage/db";
 
 export async function GET(req: NextRequest) {
   await libraryReady();
@@ -21,5 +22,14 @@ export async function GET(req: NextRequest) {
   const result = match(getLibrary(), { trackId, title, artists: [artist] }, {
     trackOverrides: prefs.trackOverrides
   });
+  try {
+    recordEvent(session.userId, "match", {
+      trackId,
+      outcome: result.match ? (result.confidence === "exact" ? "hit" : "fuzzy") : "miss",
+      matchId: result.match?.id ?? null,
+      confidence: result.confidence,
+      score: result.score ?? null,
+    });
+  } catch { /* non-fatal */ }
   return NextResponse.json(result);
 }
