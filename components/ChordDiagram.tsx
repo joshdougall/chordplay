@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { lookupChord } from "@/lib/chord-diagrams/chord-lookup";
+import type { UserChordDb } from "@/lib/chord-diagrams/user-chord-db";
 
 const SIZE_MAP = { sm: 90, md: 120, lg: 180 } as const;
 
@@ -9,6 +10,35 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string)
   );
+}
+
+// Module-level cache so we only fetch overrides once per session.
+// Cleared and refetched when the "chord-diagrams-changed" event fires.
+let overridesCache: UserChordDb | null = null;
+let overridesFetchPromise: Promise<UserChordDb> | null = null;
+
+function fetchOverrides(): Promise<UserChordDb> {
+  if (overridesFetchPromise) return overridesFetchPromise;
+  overridesFetchPromise = fetch("/api/chord-diagrams")
+    .then(r => r.json())
+    .then((body: { overrides?: UserChordDb }) => {
+      overridesCache = body.overrides ?? {};
+      return overridesCache;
+    })
+    .catch(() => {
+      overridesFetchPromise = null;
+      return {};
+    });
+  return overridesFetchPromise;
+}
+
+function invalidateOverridesCache() {
+  overridesCache = null;
+  overridesFetchPromise = null;
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("chord-diagrams-changed", invalidateOverridesCache);
 }
 
 export function ChordDiagram({
@@ -19,6 +49,17 @@ export function ChordDiagram({
   size?: "sm" | "md" | "lg";
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [, setOverrides] = useState<UserChordDb | null>(null);
+
+  // Trigger re-render when overrides change
+  useEffect(() => {
+    function onChanged() {
+      invalidateOverridesCache();
+      fetchOverrides().then(o => setOverrides({ ...o }));
+    }
+    window.addEventListener("chord-diagrams-changed", onChanged);
+    return () => window.removeEventListener("chord-diagrams-changed", onChanged);
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -28,7 +69,8 @@ export function ChordDiagram({
     let cancelled = false;
 
     async function render() {
-      const chord = await lookupChord(name);
+      const overrides = overridesCache ?? await fetchOverrides();
+      const chord = await lookupChord(name, overrides);
 
       if (cancelled || !container) return;
 
