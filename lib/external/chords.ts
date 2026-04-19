@@ -30,12 +30,14 @@ import { logger } from "@/lib/logger";
 //     parse for v1), so we return a stub linking out to the Songsterr viewer.
 //     Listed last — prefer real chord content from other providers first.
 export const PROVIDERS: ChordProvider[] = [
+  // Broadest catalog first. UG mobile API covers mainstream pop/country where the
+  // other sites typically miss, so try it early.
+  UltimateGuitarApiProvider,
   ChordieProvider,
   AzChordsProvider,
-  GuitarTabsCcProvider,
   GuitareTabProvider,
-  UltimateGuitarApiProvider,
-  SongsterrProvider,
+  GuitarTabsCcProvider,
+  SongsterrProvider,  // stub-only — last resort
   // UltimateGuitarProvider,  // see note above — superseded by UltimateGuitarApiProvider
   // ChordifyProvider,
   // EChordsProvider,
