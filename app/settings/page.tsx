@@ -136,6 +136,22 @@ export default function SettingsPage() {
       </section>
 
       <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Admin</h2>
+        <div className="rounded p-4 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <a
+            href="/settings/admin"
+            className="text-sm transition-colors"
+            style={{ color: "var(--accent)" }}
+          >
+            Usage dashboard
+          </a>
+          <p className="text-xs mt-1" style={{ color: "var(--ink-faint)" }}>
+            Plays, matches, errors, and per-user activity. Access requires admin privileges.
+          </p>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>About</h2>
         <div className="rounded p-4 text-sm flex flex-col gap-3" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center justify-between">

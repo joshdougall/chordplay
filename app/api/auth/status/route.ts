@@ -58,5 +58,6 @@ export async function GET() {
     userId: session.userId,
     displayName: profile?.displayName ?? null,
     avatarUrl: profile?.avatarUrl ?? null,
+    isAdmin: cfg.adminUserIds.includes(session.userId),
   });
 }
