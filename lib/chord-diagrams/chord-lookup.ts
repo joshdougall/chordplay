@@ -7,6 +7,7 @@
 
 import { CHORD_DB, normalizeChord } from "./chord-db";
 import type { ChordEntry } from "./chord-db";
+import type { UserChordDb } from "./user-chord-db";
 
 type ChordsDbPosition = {
   frets: number[];
@@ -41,15 +42,26 @@ async function getGuitarChords(): Promise<Record<string, ChordsDbEntry[]>> {
 
 /**
  * Look up a chord diagram. Tries, in order:
- *   1. Curated DB (hand-crafted beginner voicings) — preferred when we have one
- *   2. @tombatossals/chords-db (hundreds of voicings)
- *   3. null (caller shows chord name in text only)
+ *   1. User overrides (per-user custom voicings) — highest priority
+ *   2. Curated DB (hand-crafted beginner voicings) — preferred when we have one
+ *   3. @tombatossals/chords-db (hundreds of voicings)
+ *   4. null (caller shows chord name in text only)
  *
  * @param name e.g. "C", "Cm", "Cmaj7", "C/E", "F#dim7"
+ * @param userOverrides optional per-user chord overrides checked first
  */
-export async function lookupChord(name: string): Promise<ChordEntry | null> {
+export async function lookupChord(name: string, userOverrides?: UserChordDb): Promise<ChordEntry | null> {
   // Strip slash-bass before curated lookup ("C/E" -> "C", "G/B" -> "G")
   const nameWithoutBass = name.replace(/\/[A-Ga-g][#b]?$/, "").trim();
+
+  // 0. User overrides — checked before everything else
+  if (userOverrides) {
+    if (userOverrides[nameWithoutBass]) return userOverrides[nameWithoutBass];
+    if (userOverrides[name]) return userOverrides[name];
+    // Also try normalized key (e.g. "Cadd9" -> "C" in user overrides)
+    const normalizedForUser = normalizeChordInOverrides(nameWithoutBass, userOverrides);
+    if (normalizedForUser) return normalizedForUser;
+  }
 
   // 1. Curated override
   const curatedKey = normalizeChord(nameWithoutBass);
@@ -221,4 +233,44 @@ function chordsDbToSvguitar(pos: ChordsDbPosition): ChordEntry {
   }
 
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// User overrides helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Check if a chord name (or any of its normalized fallbacks) exists in the user overrides.
+ * Returns the override entry if found, null otherwise.
+ */
+function normalizeChordInOverrides(name: string, overrides: UserChordDb): ChordEntry | null {
+  if (!name) return null;
+  if (overrides[name]) return overrides[name];
+
+  const fallbacks: Array<(n: string) => string | null> = [
+    n => n.replace(/add\d+$/, ""),
+    n => n.replace(/9$/, "7"),
+    n => n.replace(/maj9$/, "maj7"),
+    n => n.replace(/(?<!maj)9$/, "7"),
+    n => n.replace(/7b5$/, "7"),
+    n => n.replace(/7b5$/, ""),
+    n => n.replace(/dim7?$/, "m"),
+    n => n.replace(/aug$/, ""),
+    n => n.replace(/maj7$/, ""),
+    n => n.replace(/m7$/, "m"),
+    n => n.replace(/7$/, ""),
+    n => n.replace(/sus[24]?$/, ""),
+    n => n.replace(/m$/, ""),
+  ];
+
+  for (const transform of fallbacks) {
+    const candidate = transform(name);
+    if (candidate && candidate !== name) {
+      if (overrides[candidate]) return overrides[candidate];
+      const deeper = normalizeChordInOverrides(candidate, overrides);
+      if (deeper) return deeper;
+    }
+  }
+
+  return null;
 }

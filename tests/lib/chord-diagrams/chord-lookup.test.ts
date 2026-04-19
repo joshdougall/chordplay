@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { lookupChord } from "@/lib/chord-diagrams/chord-lookup";
 import { CHORD_DB } from "@/lib/chord-diagrams/chord-db";
+import type { UserChordDb } from "@/lib/chord-diagrams/user-chord-db";
 
 describe("lookupChord — curated overrides", () => {
   it("returns the curated entry for a chord in the curated DB", async () => {
@@ -111,6 +112,53 @@ describe("lookupChord — sharp/flat canonicalization", () => {
     expect(db).not.toBeNull();
   });
 });
+
+describe("lookupChord — user overrides", () => {
+  const customC: ChordEntry = {
+    fingers: [[6, "x"], [5, 3], [4, 2], [3, 0], [2, 0], [1, 0]],
+    barres: [],
+  };
+
+  it("user override wins over curated DB", async () => {
+    const overrides: UserChordDb = { C: customC };
+    const result = await lookupChord("C", overrides);
+    expect(result).toBe(customC);
+    expect(result).not.toBe(CHORD_DB["C"]);
+  });
+
+  it("user override wins over chords-db fallback", async () => {
+    const customCsharpM: ChordEntry = { fingers: [[6, "x"], [5, 4], [4, 6], [3, 6]], barres: [] };
+    const overrides: UserChordDb = { "C#m": customCsharpM };
+    const result = await lookupChord("C#m", overrides);
+    expect(result).toBe(customCsharpM);
+  });
+
+  it("falls through to curated DB when no matching override", async () => {
+    const overrides: UserChordDb = { G: { fingers: [[6, 3]], barres: [] } };
+    const result = await lookupChord("C", overrides);
+    // C not in overrides, should fall to curated
+    expect(result).toBe(CHORD_DB["C"]);
+  });
+
+  it("slash chord strips bass before checking overrides", async () => {
+    const overrides: UserChordDb = { C: customC };
+    const result = await lookupChord("C/E", overrides);
+    expect(result).toBe(customC);
+  });
+
+  it("empty overrides object falls through to normal lookup", async () => {
+    const result = await lookupChord("Am", {});
+    expect(result).toBe(CHORD_DB["Am"]);
+  });
+
+  it("no overrides param (undefined) falls through normally", async () => {
+    const result = await lookupChord("Am");
+    expect(result).toBe(CHORD_DB["Am"]);
+  });
+});
+
+// TypeScript type helper to ensure ChordEntry is accessible in tests
+type ChordEntry = (typeof CHORD_DB)[string];
 
 describe("lookupChord — unknown chords", () => {
   it("returns null for completely unknown chord", async () => {
