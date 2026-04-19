@@ -1,7 +1,7 @@
 # State: Chordplay
 
 ## Current status
-**v0.6.1 batch commits in worktree** (agent-a73df64c). Live on prod: v0.6.1 at https://chords.dougall.ca.
+**Usage tracking + admin panel complete** (agent-a9e0c91b, 3 commits on worktree branch). Not yet tagged or merged to main. Live on prod: v0.6.1 at https://chords.dougall.ca.
 
 ## Re-auth required
 New Spotify scopes added in this batch:
@@ -19,7 +19,22 @@ Users must visit Settings → "Logout & reconnect" to grant new scopes.
 - v0.5.0 — warm songbook branding, keyboard shortcuts, Spotify playback control
 - v0.6.1 — (committed to worktree, not yet merged/tagged) batch feature work
 
-## What was done in this agent session (worktree agent-a73df64c)
+## What was done in this agent session (worktree agent-a9e0c91b)
+1. `feat(usage): sqlite event store + instrument routes` (ae7fbe5)
+2. `feat(admin): /settings/admin page with overview + event table + CSV export` (f8414ed)
+3. `feat(now-playing): playback controls (prev/play-pause/next) in toolbar` (818e152)
+
+### Ansible change needed before deploy
+In `homelab-infra/ansible/roles/chords/defaults/main.yml` — add:
+```yaml
+chords_admin_users: "joshdougall"
+```
+In `homelab-infra/ansible/roles/chords/templates/docker-compose.yml.j2` — add to environment:
+```yaml
+CHORDPLAY_ADMIN_USERS: "{{ chords_admin_users }}"
+```
+
+## What was done in worktree agent-a73df64c
 1. `fix(add): sync internal track state when initialTrack prop changes`
 2. `feat(matcher): weighted artist+title fuzzy, 0.90 threshold, expose score + wrong-match flow`
 3. `feat(now-playing): fall back to last-played when Spotify idle`
