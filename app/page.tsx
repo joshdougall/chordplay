@@ -531,9 +531,41 @@ export default function HomePage() {
             </div>
           </>
         )}
+        {/* Playback controls */}
+        {effectiveTrack && connected && (
+          <div className="flex items-center gap-1 ml-auto">
+            <button
+              onClick={() => playbackAction("previous")}
+              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              style={btnStyle}
+              title="Previous (j / ←)"
+              aria-label="Previous track"
+            >
+              ⏮
+            </button>
+            <button
+              onClick={() => playbackAction("toggle")}
+              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              style={btnStyle}
+              title="Play / Pause (space / k)"
+              aria-label="Play or pause"
+            >
+              ⏯
+            </button>
+            <button
+              onClick={() => playbackAction("next")}
+              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              style={btnStyle}
+              title="Next (l / →)"
+              aria-label="Next track"
+            >
+              ⏭
+            </button>
+          </div>
+        )}
         <button
           onClick={() => setShowShortcuts(true)}
-          className="ml-auto px-2 py-1 rounded text-xs"
+          className={effectiveTrack && connected ? "px-2 py-1 rounded text-xs" : "ml-auto px-2 py-1 rounded text-xs"}
           style={{ color: "var(--ink-faint)" }}
           title="Keyboard shortcuts"
         >
