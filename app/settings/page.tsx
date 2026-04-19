@@ -120,6 +120,22 @@ export default function SettingsPage() {
       </section>
 
       <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Chord Diagrams</h2>
+        <div className="rounded p-4 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <p style={{ color: "var(--ink-muted)" }} className="mb-3">
+            Customise the voicings shown for any chord in your library. Overrides are saved per user.
+          </p>
+          <a
+            href="/settings/diagrams"
+            className="inline-block px-4 py-2 rounded text-sm transition-colors"
+            style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
+          >
+            Edit custom diagrams
+          </a>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>About</h2>
         <div className="rounded p-4 text-sm flex flex-col gap-3" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center justify-between">
