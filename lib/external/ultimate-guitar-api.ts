@@ -16,6 +16,7 @@ import type { ChordProvider, ExternalChords } from "./provider";
 import { logger } from "@/lib/logger";
 import { cleanTitleForSearch, cleanArtistForSearch } from "./clean-title";
 import { validateResult } from "./validate";
+import { isAcceptableLanguage } from "./language";
 
 export const UG_API_ID = "ultimate-guitar-api";
 export const UG_API_NAME = "Ultimate Guitar";
@@ -206,6 +207,12 @@ export async function fetchUGApiChords(
 
   const chordPro = ugContentToChordPro(rawContent);
   if (!chordPro) return null;
+
+  // Reject content in an unexpected language (e.g., Norwegian chord sheet with
+  // "Morgan Kane" coming back for Morgan Wallen tracks).
+  if (!isAcceptableLanguage(chordPro, { providerId: UG_API_ID, artist, title })) {
+    return null;
+  }
 
   const resolvedTitle = tabInfo.song_name ?? best.song_name ?? title;
   const resolvedArtist = tabInfo.artist_name ?? best.artist_name ?? artist;
