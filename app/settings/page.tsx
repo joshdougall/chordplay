@@ -1,0 +1,199 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { Prefs } from "@/lib/prefs/store";
+
+export default function SettingsPage() {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [prefs, setPrefs] = useState<Prefs | null>(null);
+  const [healthInfo, setHealthInfo] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/status")
+      .then(r => r.json())
+      .then(body => { if (body.userId) setUserId(body.userId); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/prefs")
+      .then(r => r.json())
+      .then(setPrefs)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/health")
+      .then(r => r.json())
+      .then(() => setHealthInfo("OK"))
+      .catch(() => setHealthInfo("Unavailable"));
+  }, []);
+
+  async function toggleAutoScroll() {
+    if (!prefs) return;
+    const next = { ...prefs, autoScroll: !prefs.autoScroll };
+    setPrefs(next);
+    setSaving(true);
+    try {
+      await fetch("/api/prefs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next)
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleChordDiagrams() {
+    if (!prefs) return;
+    const next = { ...prefs, showChordDiagrams: !prefs.showChordDiagrams };
+    setPrefs(next);
+    setSaving(true);
+    try {
+      await fetch("/api/prefs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next)
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="p-6 max-w-lg flex flex-col gap-6">
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Account</h2>
+        <div className="rounded p-4 flex flex-col gap-3 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center justify-between">
+            <span style={{ color: "var(--ink-muted)" }}>Signed in as</span>
+            <span className="font-mono" style={{ color: "var(--ink)" }}>{userId ?? "…"}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span style={{ color: "var(--ink-muted)" }}>Library status</span>
+            <span style={{ color: "var(--ink)" }}>{healthInfo ?? "…"}</span>
+          </div>
+          <form action="/api/auth/logout" method="post" className="pt-1">
+            <button
+              type="submit"
+              className="px-4 py-2 rounded text-sm transition-colors"
+              style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }}
+            >
+              Log out
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Playback</h2>
+        <div className="rounded p-4 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <label className="flex items-center justify-between gap-3">
+            <div>
+              <span style={{ color: "var(--ink)" }}>Auto-scroll</span>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-faint)" }}>Scroll chord sheets in sync with playback progress</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={prefs?.autoScroll ?? false}
+              onChange={toggleAutoScroll}
+              disabled={saving || prefs === null}
+              className="w-4 h-4"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+            <div>
+              <span style={{ color: "var(--ink)" }}>Chord diagrams</span>
+              <p className="text-xs mt-0.5" style={{ color: "var(--ink-faint)" }}>Show guitar chord diagrams above chord sheets</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={prefs?.showChordDiagrams ?? true}
+              onChange={toggleChordDiagrams}
+              disabled={saving || prefs === null}
+              className="w-4 h-4"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Chord Diagrams</h2>
+        <div className="rounded p-4 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <p style={{ color: "var(--ink-muted)" }} className="mb-3">
+            Customise the voicings shown for any chord in your library. Overrides are saved per user.
+          </p>
+          <a
+            href="/settings/diagrams"
+            className="inline-block px-4 py-2 rounded text-sm transition-colors"
+            style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
+          >
+            Edit custom diagrams
+          </a>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Admin</h2>
+        <div className="rounded p-4 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <a
+            href="/settings/admin"
+            className="text-sm transition-colors"
+            style={{ color: "var(--accent)" }}
+          >
+            Usage dashboard
+          </a>
+          <p className="text-xs mt-1" style={{ color: "var(--ink-faint)" }}>
+            Plays, matches, errors, and per-user activity. Access requires admin privileges.
+          </p>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>About</h2>
+        <div className="rounded p-4 text-sm flex flex-col gap-3" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center justify-between">
+            <span style={{ color: "var(--ink-muted)" }}>Version</span>
+            <span className="font-mono" style={{ color: "var(--ink)" }}>{process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown"}</span>
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+            <span style={{ color: "var(--ink-muted)" }}>Now-playing data</span>
+            <a
+              href="https://www.spotify.com"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 text-xs transition-colors"
+              style={{ color: "var(--ink)" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 168 168" aria-hidden="true">
+                <path fill="#1DB954" d="M83.996.277C37.747.277.253 37.77.253 84.019c0 46.251 37.494 83.741 83.743 83.741 46.254 0 83.744-37.49 83.744-83.741 0-46.246-37.49-83.738-83.745-83.738zm38.404 120.78a5.217 5.217 0 01-7.18 1.73c-19.662-12.01-44.414-14.73-73.564-8.07a5.222 5.222 0 01-6.249-3.93 5.213 5.213 0 013.926-6.25c31.9-7.291 59.263-4.15 81.337 9.34 2.46 1.51 3.24 4.72 1.73 7.18zm10.25-22.805c-1.89 3.075-5.91 4.045-8.98 2.155-22.51-13.839-56.823-17.846-83.448-9.764-3.453 1.043-7.1-.903-8.148-4.35-1.04-3.453.907-7.093 4.354-8.143 30.413-9.228 68.222-4.758 94.072 11.127 3.07 1.89 4.04 5.91 2.15 8.976v-.001zm.88-23.744c-26.99-16.031-71.52-17.505-97.289-9.684-4.138 1.255-8.514-1.081-9.768-5.219a7.835 7.835 0 015.221-9.771c29.581-8.98 78.756-7.245 109.83 11.202a7.823 7.823 0 012.74 10.733c-2.2 3.722-7.02 4.949-10.73 2.739z"/>
+              </svg>
+              Powered by Spotify
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>Spotify Permissions</h2>
+        <div className="rounded p-4 text-sm" style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <p style={{ color: "var(--ink-muted)" }} className="mb-3">
+            Playback control shortcuts (space, j/k/l) require additional Spotify permissions.
+            If play/pause shortcuts don&apos;t work, re-authenticate to grant them.
+          </p>
+          <form action="/api/auth/login" method="get">
+            <button
+              type="submit"
+              className="px-4 py-2 rounded text-sm transition-colors"
+              style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
+            >
+              Logout &amp; reconnect
+            </button>
+          </form>
+        </div>
+      </section>
+    </div>
+  );
+}

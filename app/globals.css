@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #1a1614;
+  --bg-surface: #252220;
+  --bg-alt: #2e2a27;
+  --border: #3a352f;
+  --ink: #f5f0e6;
+  --ink-muted: #a89e8e;
+  --ink-faint: #6b635a;
+  --accent: #e8b86b;
+  --accent-hover: #f2c278;
+  --success: #8fa869;
+  --danger: #c47066;
+}
+
+html, body { height: 100%; }
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+}
+
+/* ChordSheetJS HtmlDivFormatter layout: chords above lyrics, inline rows */
+.chordpro {
+  padding: 1.5rem;
+  line-height: 1.6;
+  font-size: 1rem;
+  font-family: var(--font-mono-brand, "JetBrains Mono", monospace);
+}
+.chordpro .paragraph { margin-bottom: 1.25rem; }
+.chordpro .row { display: flex; flex-wrap: wrap; align-items: flex-end; }
+.chordpro .column {
+  display: inline-flex;
+  flex-direction: column;
+  white-space: pre;
+}
+.chordpro .chord {
+  color: var(--accent);
+  font-weight: 600;
+  min-height: 1.2em;
+  padding-right: 0.25em;
+}
+.chordpro .chord:hover,
+.chordpro .chord:focus-visible {
+  color: var(--accent-hover);
+  outline: none;
+  text-decoration: underline;
+}
+
+/* Pulse animation for palette diagram when its chord is clicked in the sheet */
+@keyframes chord-pulse {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(232, 184, 107, 0.0); }
+  30%  { transform: scale(1.08); box-shadow: 0 0 0 4px rgba(232, 184, 107, 0.35); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(232, 184, 107, 0.0); }
+}
+.chord-pulse {
+  animation: chord-pulse 800ms ease-out;
+  border-radius: 6px;
+}
+.chordpro .lyrics {
+  white-space: pre;
+  color: var(--ink);
+}
+.chordpro .comment { font-style: italic; color: var(--ink-muted); margin: 0.5rem 0; }
+.chordpro h1, .chordpro h2, .chordpro h3 {
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 0.5rem 0;
+}
+.chordpro .title { font-size: 1.25rem; }
+.chordpro .subtitle { color: var(--ink-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+
+/* Brand typography */
+.brand-title {
+  font-family: var(--font-lora, Georgia, serif);
+  font-style: italic;
+}
+
+/* Skeleton loading animation */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+.skeleton { animation: skeleton-pulse 1.4s ease-in-out infinite; }
