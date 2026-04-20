@@ -63,7 +63,8 @@ export async function lookupChord(name: string, userOverrides?: UserChordDb): Pr
     if (normalizedForUser) return normalizedForUser;
   }
 
-  // 1. Curated override
+  // 1. Curated override: check full slash name first (D/C, G/B etc.), then base chord
+  if (CHORD_DB[name]) return CHORD_DB[name];
   const curatedKey = normalizeChord(nameWithoutBass);
   if (curatedKey && CHORD_DB[curatedKey]) return CHORD_DB[curatedKey];
 

@@ -408,6 +408,103 @@ export const CHORD_DB: Record<string, ChordEntry> = {
     ],
     barres: [],
   },
+
+  // --- Slash chords (inversions with specific bass notes) ---
+  // These are the actual voicings, not just the base chord shape.
+  // D walking bass (common in folk/rock: D – D/C – D/B – D/A)
+  "D/C": {
+    fingers: [
+      [6, "x"],
+      [5, 3],  // C
+      [4, 0],  // D
+      [3, 2],  // A
+      [2, 3],  // D
+      [1, 2],  // F#
+    ],
+    barres: [],
+  },
+  "D/B": {
+    fingers: [
+      [6, "x"],
+      [5, 2],  // B
+      [4, 0],  // D
+      [3, 2],  // A
+      [2, 3],  // D
+      [1, 2],  // F#
+    ],
+    barres: [],
+  },
+  "D/A": {
+    fingers: [
+      [6, "x"],
+      [5, 0],  // A (open)
+      [4, 0],  // D
+      [3, 2],  // A
+      [2, 3],  // D
+      [1, 2],  // F#
+    ],
+    barres: [],
+  },
+  // G/B — extremely common in folk/pop (e.g. G – G/B – C)
+  "G/B": {
+    fingers: [
+      [6, "x"],
+      [5, 2],  // B
+      [4, 0],  // D
+      [3, 0],  // G
+      [2, 0],  // B
+      [1, 3],  // G
+    ],
+    barres: [],
+  },
+  // C/E — C major with E bass (first inversion, very common)
+  "C/E": {
+    fingers: [
+      [6, 0],  // E (open)
+      [5, 3],  // C
+      [4, 2],  // E
+      [3, 0],  // G
+      [2, 1],  // C
+      [1, 0],  // E
+    ],
+    barres: [],
+  },
+  // A/E — A major with open E bass
+  "A/E": {
+    fingers: [
+      [6, 0],  // E (open)
+      [5, 0],  // A (open)
+      [4, 2],  // E
+      [3, 2],  // A
+      [2, 2],  // C#
+      [1, 0],  // E
+    ],
+    barres: [],
+  },
+  // Am/E — A minor with open E bass
+  "Am/E": {
+    fingers: [
+      [6, 0],  // E (open)
+      [5, 0],  // A (open)
+      [4, 2],  // E
+      [3, 2],  // A
+      [2, 1],  // C
+      [1, 0],  // E
+    ],
+    barres: [],
+  },
+  // Em/B — E minor with B bass
+  "Em/B": {
+    fingers: [
+      [6, "x"],
+      [5, 2],  // B
+      [4, 2],  // E
+      [3, 0],  // G
+      [2, 0],  // B
+      [1, 0],  // E
+    ],
+    barres: [],
+  },
 };
 
 /**

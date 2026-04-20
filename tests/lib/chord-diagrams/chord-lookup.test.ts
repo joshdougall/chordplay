@@ -62,15 +62,14 @@ describe("lookupChord — chords-db fallback", () => {
 });
 
 describe("lookupChord — slash chord handling", () => {
-  it("C/E returns C major voicing", async () => {
+  it("C/E returns the specific C/E inversion voicing", async () => {
     const result = await lookupChord("C/E");
-    // C is in curated DB, so should return curated C
-    expect(result).toBe(CHORD_DB["C"]);
+    expect(result).toBe(CHORD_DB["C/E"]);
   });
 
-  it("G/B looks up G major", async () => {
+  it("G/B returns the specific G/B inversion voicing", async () => {
     const result = await lookupChord("G/B");
-    expect(result).toBe(CHORD_DB["G"]);
+    expect(result).toBe(CHORD_DB["G/B"]);
   });
 
   it("F#m/A looks up F# minor from chords-db", async () => {
