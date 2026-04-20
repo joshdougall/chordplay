@@ -5,9 +5,6 @@
 // and an X-UG-API-KEY derived as:
 //   MD5( deviceId + "YYYY-MM-DD:H" (UTC) + "createLog()" )
 //
-// Discovered by reverse-engineering the UG Android app:
-//   https://github.com/Pilfer/ultimate-guitar-scraper
-//
 // Tab type 300 = Chords. Search returns JSON with a `tabs` array;
 // tab/info returns full content in UG's [ch]CHORD[/ch] / [tab]…[/tab] format.
 

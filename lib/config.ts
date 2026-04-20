@@ -35,11 +35,9 @@ export function loadConfig(): Config {
     libraryPath: required("LIBRARY_PATH"),
     dataPath: required("DATA_PATH"),
     logLevel: ["debug", "info", "warn", "error"].includes(level) ? level : "info",
-    forgejoBaseUrl: process.env.FORGEJO_BASE_URL ?? "https://forgejo.dougall.ca",
-    forgejoIssueRepo: process.env.FORGEJO_ISSUE_REPO ?? "joshdougall/chordplay",
+    forgejoBaseUrl: process.env.FORGEJO_BASE_URL ?? "",
+    forgejoIssueRepo: process.env.FORGEJO_ISSUE_REPO ?? "",
     forgejoIssueToken: process.env.FORGEJO_ISSUE_TOKEN ?? null,
-    // Comma-separated list of userIds that can access the admin panel.
-    // Set CHORDPLAY_ADMIN_USERS=joshdougall in the deployment environment.
     adminUserIds: (process.env.CHORDPLAY_ADMIN_USERS ?? "").split(",").map(s => s.trim()).filter(Boolean),
   };
 }

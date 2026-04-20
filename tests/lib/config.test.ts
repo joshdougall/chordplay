@@ -5,7 +5,7 @@ const REQUIRED = {
   APP_SECRET: Buffer.alloc(32).toString("base64"), // exactly 32 zero bytes, base64 encoded
   SPOTIFY_CLIENT_ID: "cid",
   SPOTIFY_CLIENT_SECRET: "csec",
-  SPOTIFY_REDIRECT_URI: "https://chords.dougall.ca/api/auth/callback",
+  SPOTIFY_REDIRECT_URI: "http://localhost:3000/api/auth/callback",
   LIBRARY_PATH: "/tmp/lib",
   DATA_PATH: "/tmp/data"
 };
