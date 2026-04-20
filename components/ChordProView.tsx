@@ -18,6 +18,15 @@ function transposeKey(key: string, semitones: number): string {
   return CHROMATIC_KEYS[((idx + semitones) % 12 + 12) % 12];
 }
 
+function isChordName(s: string): boolean {
+  return /^[A-G][#b]?/.test(s);
+}
+
+function chordDedupKey(name: string): string {
+  // D/C and D/B both map to the same D diagram — deduplicate on the base chord
+  return name.replace(/\/[A-Ga-g][#b]?$/, "").trim();
+}
+
 function extractUniqueChords(song: Song): string[] {
   const seen = new Set<string>();
   const ordered: string[] = [];
@@ -25,13 +34,20 @@ function extractUniqueChords(song: Song): string[] {
     for (const item of line.items) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const chords: string = (item as any).chords ?? "";
-      if (chords && !seen.has(chords)) {
-        seen.add(chords);
+      if (!chords || !isChordName(chords)) continue;
+      const key = chordDedupKey(chords);
+      if (!seen.has(key)) {
+        seen.add(key);
         ordered.push(chords);
       }
     }
   }
   return ordered;
+}
+
+function hasAsciiTabLines(source: string): boolean {
+  // Guitar tab lines start with a string name (e B G D A E) followed by |
+  return /^[eBGDAE]\s*[|┤]/m.test(source);
 }
 
 function extractAllChords(song: Song): string[] {
@@ -40,7 +56,7 @@ function extractAllChords(song: Song): string[] {
     for (const item of line.items) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const chords: string = (item as any).chords ?? "";
-      if (chords) all.push(chords);
+      if (chords && isChordName(chords)) all.push(chords);
     }
   }
   return all;
@@ -55,6 +71,8 @@ export function ChordProView({
   transpose?: number;
   showChordDiagrams?: boolean;
 }) {
+  const containsTab = useMemo(() => hasAsciiTabLines(source), [source]);
+
   const { html, uniqueChords, keyLabel, capo } = useMemo(() => {
     try {
       const stripped = stripMetaPreamble(source);
@@ -167,8 +185,9 @@ export function ChordProView({
             dangerouslySetInnerHTML={{ __html: html }}
           />
         </div>
-        {showChordDiagrams && uniqueChords.length > 0 && (
-          /* Desktop: right rail, vertical stack, sticky */
+        {showChordDiagrams && !containsTab && uniqueChords.length > 0 && (
+          /* Desktop: right rail, vertical stack, sticky. Hidden for ASCII-tab content since
+             long tab lines need the full width. */
           <aside className="hidden md:block md:w-[140px] md:flex-shrink-0">
             <div
               className="sticky top-0 flex flex-col gap-3 pl-3 py-2"
