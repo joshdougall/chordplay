@@ -6,6 +6,7 @@ import type { Song } from "chordsheetjs";
 import { ChordDiagram } from "@/components/ChordDiagram";
 import { detectKey, capoSuggestion, normalizeChordRoot } from "@/lib/music/key-detection";
 import { stripMetaPreamble } from "@/lib/chordpro/strip-meta";
+import { isChordName, extractUniqueChords } from "@/lib/chordpro/extract-chords";
 
 const CHROMATIC_KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -18,35 +19,7 @@ function transposeKey(key: string, semitones: number): string {
   return CHROMATIC_KEYS[((idx + semitones) % 12 + 12) % 12];
 }
 
-function isChordName(s: string): boolean {
-  return /^[A-G][#b]?/.test(s);
-}
-
-function chordDedupKey(name: string): string {
-  // D/C and D/B both map to the same D diagram — deduplicate on the base chord
-  return name.replace(/\/[A-Ga-g][#b]?$/, "").trim();
-}
-
-function extractUniqueChords(song: Song): string[] {
-  const seen = new Set<string>();
-  const ordered: string[] = [];
-  for (const line of song.lines) {
-    for (const item of line.items) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const chords: string = (item as any).chords ?? "";
-      if (!chords || !isChordName(chords)) continue;
-      const key = chordDedupKey(chords);
-      if (!seen.has(key)) {
-        seen.add(key);
-        ordered.push(chords);
-      }
-    }
-  }
-  return ordered;
-}
-
 function hasAsciiTabLines(source: string): boolean {
-  // Guitar tab lines start with a string name (e B G D A E) followed by |
   return /^[eBGDAE]\s*[|┤]/m.test(source);
 }
 
