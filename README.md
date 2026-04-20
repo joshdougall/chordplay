@@ -1,52 +1,125 @@
 # Chordplay
 
-Single-user web app that shows chord sheets and tabs for whatever Spotify is currently playing, with optional playback-synced auto-scroll.
+Shows chord sheets and guitar tabs for whatever is currently playing on Spotify, with playback-synced auto-scroll. Chord sheets are fetched automatically from Ultimate Guitar, Chordie, and other sources, or you can add your own files.
+
+## Features
+
+- Auto-fetches chord sheets when a song starts playing
+- ChordPro, ASCII tab, and Guitar Pro file support
+- Chord diagrams with correct voicings (including slash chord inversions like D/C, G/B)
+- Transpose + capo suggestions
+- Per-user library with multi-version support
+- Spotify playlist browser with batch chord import
+- Auto-scroll with speed control
+- Multi-user (each user authenticates with their own Spotify account)
+
+## Prerequisites
+
+- Node.js 22+
+- A [Spotify Developer app](https://developer.spotify.com/dashboard) in Development Mode
+
+> **Spotify user limit:** Development Mode allows up to 25 users. Each user's Spotify email must be added to your app's allowlist in the Spotify Developer Dashboard before they can log in.
 
 ## Local development
 
 ```bash
+git clone <repo-url>
+cd chordplay
 npm install
-cp .env.example .env.local  # fill in values
-npm run dev
+cp .env.example .env.local
 ```
 
-### Required environment variables
+Edit `.env.local`:
 
-| Var | Purpose |
+```env
+# Generate: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+APP_SECRET=<32-byte base64 string>
+
+SPOTIFY_CLIENT_ID=your_client_id
+SPOTIFY_CLIENT_SECRET=your_client_secret
+SPOTIFY_REDIRECT_URI=http://localhost:3000/api/auth/callback
+
+# Created automatically on first run
+LIBRARY_PATH=./data/library
+DATA_PATH=./data/app
+```
+
+```bash
+npm run dev
+# open http://localhost:3000
+```
+
+## Required environment variables
+
+| Variable | Purpose |
 |---|---|
-| `APP_SECRET` | 32 bytes of randomness, base64 encoded. Use `openssl rand -base64 32`. |
-| `SPOTIFY_CLIENT_ID` | From https://developer.spotify.com/dashboard |
-| `SPOTIFY_CLIENT_SECRET` | Same |
-| `SPOTIFY_REDIRECT_URI` | Must match what's registered in the Spotify app, e.g. `http://localhost:3000/api/auth/callback` for local dev. |
-| `LIBRARY_PATH` | Absolute path to your chord/tab library directory. |
-| `DATA_PATH` | Absolute path to writable dir for `tokens.json` and `prefs.json`. |
+| `APP_SECRET` | 32 bytes of randomness, base64-encoded. `openssl rand -base64 32` |
+| `SPOTIFY_CLIENT_ID` | From your Spotify Developer Dashboard |
+| `SPOTIFY_CLIENT_SECRET` | From your Spotify Developer Dashboard |
+| `SPOTIFY_REDIRECT_URI` | Must exactly match what's registered in your Spotify app |
+| `LIBRARY_PATH` | Directory where chord/tab files are stored |
+| `DATA_PATH` | Directory for user tokens, prefs, and cache |
 
-## Library format
+### Optional
 
-Drop ChordPro (`.pro`, `.cho`), ASCII tab (`.txt`), or Guitar Pro (`.gp`, `.gpx`, `.gp5`) files anywhere under `LIBRARY_PATH`. Nested subfolders are fine.
+| Variable | Default | Description |
+|---|---|---|
+| `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
+| `CHORDPLAY_ADMIN_USERS` | _(none)_ | Comma-separated Spotify user IDs with access to `/settings/admin` |
 
-Metadata is pulled from:
-1. ChordPro directives inside the file: `{title: ...}`, `{artist: ...}`, `{spotify_track_id: ...}`
-2. Filename in the form `Artist - Title.ext`
-3. Fallback: the filename becomes the title
+## Docker
 
-The `spotify_track_id` directive gives you an exact, unambiguous match. Without it the app falls back to normalized title+artist matching, then a fuzzy match.
+```yaml
+# docker-compose.yml
+services:
+  chords:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      APP_SECRET: <32-byte base64 string>
+      SPOTIFY_CLIENT_ID: your_client_id
+      SPOTIFY_CLIENT_SECRET: your_client_secret
+      SPOTIFY_REDIRECT_URI: https://chords.yourdomain.com/api/auth/callback
+      LIBRARY_PATH: /data/library
+      DATA_PATH: /data/app
+      HOSTNAME: "0.0.0.0"   # required — Next.js standalone binds to $HOSTNAME otherwise
+    volumes:
+      - ./library:/data/library
+      - ./appdata:/data/app
+```
 
-## Editing
+```bash
+docker build -t chordplay .
+docker compose up -d
+```
 
-Click "Edit" on any displayed sheet. Changes are written back to the file on disk. No database.
+## Library
 
-## Deployment
+Drop files anywhere under `LIBRARY_PATH`. Nested subdirectories are fine. Supported formats:
 
-See the `chords` Ansible role in `homelab-infra` for the production deployment (Traefik, bind mounts, vault secrets).
+- **ChordPro** (`.pro`, `.cho`) — rendered with inline chord diagrams
+- **ASCII tab** (`.txt`) — rendered as monospace text
+- **Guitar Pro** (`.gp`, `.gpx`, `.gp5`) — rendered via alphaTab
+
+Metadata is read from:
+1. ChordPro directives: `{title: ...}`, `{artist: ...}`, `{spotify_track_id: ...}`
+2. Filename pattern: `Artist - Title.ext`
+
+Adding a `{spotify_track_id: ...}` directive gives an exact, unambiguous match. Without it the app uses fuzzy title + artist matching.
 
 ## Testing
 
 ```bash
-npm test
+npm test           # unit + integration (Vitest)
+npm run test:e2e   # end-to-end (Playwright)
+npm run lint
+npx tsc            # type check
 ```
 
-## Spec & design
+## A note on copyright and usage
 
-- `docs/superpowers/specs/2026-04-16-chordplay-design.md` — full design
-- `docs/superpowers/plans/2026-04-16-chordplay.md` — implementation plan
+Chord sheets from external sources (Ultimate Guitar, Chordie, etc.) are covered by music publishing rights. This app is intended for personal use — the same category as printing out a tab for practice. Running a public instance that serves chord sheets to arbitrary users would create copyright exposure.
+
+Spotify's Development Mode is limited to 25 users. Going beyond that requires a [Commercial Developer agreement](https://developer.spotify.com/documentation/commercial-product) with Spotify.
