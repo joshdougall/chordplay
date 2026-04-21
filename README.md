@@ -67,41 +67,35 @@ npm run dev
 
 ## Docker
 
-Pre-built images for `linux/amd64` and `linux/arm64` are published to GitHub Container Registry on every release:
+Pre-built images for `linux/amd64` and `linux/arm64` are published to GitHub Container Registry on every release.
+
+**Quick start:**
 
 ```bash
-docker pull ghcr.io/joshdougall/chordplay:latest
-# or pin to a version
-docker pull ghcr.io/joshdougall/chordplay:1.2.3
-```
+cp .env.example .env
+# fill in .env, then:
 
-To build from source instead:
+# docker run
+docker run -d \
+  --name chordplay \
+  -p 3000:3000 \
+  --env-file .env \
+  -e HOSTNAME=0.0.0.0 \
+  -v ./library:/data/library \
+  -v ./appdata:/data/app \
+  ghcr.io/joshdougall/chordplay:latest
 
-```yaml
-# docker-compose.yml
-services:
-  chords:
-    build: .
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      APP_SECRET: <32-byte base64 string>
-      SPOTIFY_CLIENT_ID: your_client_id
-      SPOTIFY_CLIENT_SECRET: your_client_secret
-      SPOTIFY_REDIRECT_URI: https://chords.yourdomain.com/api/auth/callback
-      LIBRARY_PATH: /data/library
-      DATA_PATH: /data/app
-      HOSTNAME: "0.0.0.0"   # required — Next.js standalone binds to $HOSTNAME otherwise
-    volumes:
-      - ./library:/data/library
-      - ./appdata:/data/app
-```
-
-```bash
-docker build -t chordplay .
+# or docker compose (docker-compose.yml included)
 docker compose up -d
 ```
+
+Pin to a specific version:
+
+```bash
+ghcr.io/joshdougall/chordplay:1.0.0
+```
+
+To build from source, replace `image:` in `docker-compose.yml` with `build: .` and run `docker compose up -d --build`.
 
 ## Library
 
