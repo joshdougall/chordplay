@@ -67,6 +67,16 @@ npm run dev
 
 ## Docker
 
+Pre-built images for `linux/amd64` and `linux/arm64` are published to GitHub Container Registry on every release:
+
+```bash
+docker pull ghcr.io/joshdougall/chordplay:latest
+# or pin to a version
+docker pull ghcr.io/joshdougall/chordplay:1.2.3
+```
+
+To build from source instead:
+
 ```yaml
 # docker-compose.yml
 services:
