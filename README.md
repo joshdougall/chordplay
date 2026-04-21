@@ -116,6 +116,10 @@ npm run lint
 npx tsc            # type check
 ```
 
+## License
+
+MIT. See [LICENSE](LICENSE). Before running a public instance, read the copyright note below — the license covers the code, not the chord sheet content it fetches.
+
 ## A note on copyright and usage
 
 Chord sheets from external sources (Ultimate Guitar, Chordie, etc.) are covered by music publishing rights. This app is intended for personal use — the same category as printing out a tab for practice. Running a public instance that serves chord sheets to arbitrary users would create copyright exposure.
