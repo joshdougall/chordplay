@@ -1,6 +1,6 @@
 # Chordplay
 
-Shows chord sheets and guitar tabs for whatever is currently playing on Spotify, with playback-synced auto-scroll. Chord sheets are fetched automatically from Ultimate Guitar, Chordie, and other sources, or you can add your own files.
+Shows chord sheets and guitar tabs for your currently playing track, with playback-synced auto-scroll. Chord sheets are fetched automatically from Ultimate Guitar, Chordie, and other sources, or you can add your own files.
 
 ## Features
 
@@ -9,16 +9,14 @@ Shows chord sheets and guitar tabs for whatever is currently playing on Spotify,
 - Chord diagrams with correct voicings (including slash chord inversions like D/C, G/B)
 - Transpose + capo suggestions
 - Per-user library with multi-version support
-- Spotify playlist browser with batch chord import
+- Playlist browser with batch chord import
 - Auto-scroll with speed control
-- Multi-user (each user authenticates with their own Spotify account)
+- Multi-user (each user connects their own streaming account)
 
 ## Prerequisites
 
 - Node.js 22+
-- A [Spotify Developer app](https://developer.spotify.com/dashboard) in Development Mode
-
-> **Spotify user limit:** Development Mode allows up to 25 users. Each user's Spotify email must be added to your app's allowlist in the Spotify Developer Dashboard before they can log in.
+- Developer API credentials for your music streaming service (for example, a [Spotify Developer app](https://developer.spotify.com/dashboard))
 
 ## Local development
 
@@ -54,9 +52,9 @@ npm run dev
 | Variable | Purpose |
 |---|---|
 | `APP_SECRET` | 32 bytes of randomness, base64-encoded. `openssl rand -base64 32` |
-| `SPOTIFY_CLIENT_ID` | From your Spotify Developer Dashboard |
-| `SPOTIFY_CLIENT_SECRET` | From your Spotify Developer Dashboard |
-| `SPOTIFY_REDIRECT_URI` | Must exactly match what's registered in your Spotify app |
+| `SPOTIFY_CLIENT_ID` | From your streaming service developer dashboard |
+| `SPOTIFY_CLIENT_SECRET` | From your streaming service developer dashboard |
+| `SPOTIFY_REDIRECT_URI` | Must exactly match what's registered in your app |
 | `LIBRARY_PATH` | Directory where chord/tab files are stored |
 | `DATA_PATH` | Directory for user tokens, prefs, and cache |
 
@@ -65,7 +63,7 @@ npm run dev
 | Variable | Default | Description |
 |---|---|---|
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
-| `CHORDPLAY_ADMIN_USERS` | _(none)_ | Comma-separated Spotify user IDs with access to `/settings/admin` |
+| `CHORDPLAY_ADMIN_USERS` | _(none)_ | Comma-separated user IDs with access to `/settings/admin` |
 
 ## Docker
 
@@ -121,5 +119,3 @@ npx tsc            # type check
 ## A note on copyright and usage
 
 Chord sheets from external sources (Ultimate Guitar, Chordie, etc.) are covered by music publishing rights. This app is intended for personal use — the same category as printing out a tab for practice. Running a public instance that serves chord sheets to arbitrary users would create copyright exposure.
-
-Spotify's Development Mode is limited to 25 users. Going beyond that requires a [Commercial Developer agreement](https://developer.spotify.com/documentation/commercial-product) with Spotify.
