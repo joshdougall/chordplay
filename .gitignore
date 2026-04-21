@@ -13,4 +13,6 @@ dev-data/
 .e2e-data/
 playwright-report/
 test-results/
-.worktrees/
+
+STATE.md
+docs/superpowers/
