@@ -1,0 +1,12 @@
+services:
+  chordplay:
+    image: ghcr.io/joshdougall/chordplay:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      HOSTNAME: "0.0.0.0"
+    volumes:
+      - ./library:/data/library
+      - ./appdata:/data/app
