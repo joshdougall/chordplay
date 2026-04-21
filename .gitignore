@@ -13,3 +13,6 @@ dev-data/
 .e2e-data/
 playwright-report/
 test-results/
+
+STATE.md
+docs/superpowers/
