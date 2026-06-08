@@ -7,6 +7,8 @@ out
 .env
 coverage
 next-env.d.ts
+tsconfig.tsbuildinfo
+.__wtest
 dev-library/
 dev-data/
 .claude/
