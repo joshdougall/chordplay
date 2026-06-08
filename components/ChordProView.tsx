@@ -7,6 +7,7 @@ import { ChordDiagram } from "@/components/ChordDiagram";
 import { detectKey, capoSuggestion, normalizeChordRoot } from "@/lib/music/key-detection";
 import { stripMetaPreamble } from "@/lib/chordpro/strip-meta";
 import { isChordName, extractUniqueChords } from "@/lib/chordpro/extract-chords";
+import { sanitizeChordHtml } from "@/lib/chordpro/sanitize";
 
 const CHROMATIC_KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -63,14 +64,14 @@ export function ChordProView({
       const capo = keyLabel && transpose > 0 ? capoSuggestion(keyLabel, transpose) : null;
 
       return {
-        html: new HtmlDivFormatter().format(transposed),
+        html: sanitizeChordHtml(new HtmlDivFormatter().format(transposed)),
         uniqueChords: showChordDiagrams ? extractUniqueChords(transposed) : [],
         keyLabel,
         capo,
       };
     } catch (err) {
       return {
-        html: `<pre class="text-red-400">Parse error: ${(err as Error).message}</pre><pre>${escapeHtml(source)}</pre>`,
+        html: sanitizeChordHtml(`<pre class="text-red-400">Parse error: ${(err as Error).message}</pre><pre>${escapeHtml(source)}</pre>`),
         uniqueChords: [],
         keyLabel: null,
         capo: null,

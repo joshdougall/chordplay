@@ -10,12 +10,14 @@ type IssueBody = {
 };
 
 export async function POST(req: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
+
   const cfg = getConfig();
   if (!cfg.forgejoIssueToken) {
     return NextResponse.json({ error: "issue reporting not configured" }, { status: 503 });
   }
 
-  const session = await getSession();
   const body = (await req.json()) as IssueBody;
 
   if (!body.title || body.title.length < 3) {

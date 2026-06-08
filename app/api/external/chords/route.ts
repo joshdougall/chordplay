@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   const reqId = req.headers.get("x-request-id") ?? crypto.randomUUID();
   const log = withReqId(reqId);
   const session = await getSession();
+  if (!session) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
   const url = new URL(req.url);
   const title = url.searchParams.get("title")?.trim();

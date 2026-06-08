@@ -10,6 +10,8 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   await libraryReady();
   const { id } = await params;
   const decoded = decodeURIComponent(id);
@@ -29,6 +31,8 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   await libraryReady();
   const { id } = await params;
   const decoded = decodeURIComponent(id);
@@ -36,14 +40,11 @@ export async function PUT(
   if (typeof body.content !== "string") {
     return NextResponse.json({ error: "content required" }, { status: 400 });
   }
-  const session = await getSession();
   const cfg = getConfig();
   try {
     await writeEntry(cfg.libraryPath, decoded, body.content);
     await getLibrary().addOrUpdate(safePath(cfg.libraryPath, decoded));
-    if (session) {
-      try { recordEvent(session.userId, "edit", { id: decoded }); } catch { /* non-fatal */ }
-    }
+    try { recordEvent(session.userId, "edit", { id: decoded }); } catch { /* non-fatal */ }
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 400 });
@@ -54,21 +55,20 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   await libraryReady();
   const { id } = await params;
   const decoded = decodeURIComponent(id);
-  const session = await getSession();
   const cfg = getConfig();
   const entry = getLibrary().get(decoded);
   if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
   try {
     await deleteEntry(cfg.libraryPath, decoded);
     getLibrary().remove(decoded);
-    if (session) {
-      try {
-        recordEvent(session.userId, "delete", { id: decoded, title: entry.title, artist: entry.artist });
-      } catch { /* non-fatal */ }
-    }
+    try {
+      recordEvent(session.userId, "delete", { id: decoded, title: entry.title, artist: entry.artist });
+    } catch { /* non-fatal */ }
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 400 });
