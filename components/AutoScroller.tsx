@@ -14,6 +14,24 @@ type Props = {
 // Resumes automatically afterwards.
 const USER_INTERACTION_PAUSE_MS = 4000;
 
+// How far real playback progress may diverge from continuous 1x playback since
+// the scroll clock was anchored before we treat it as a seek / track change and
+// re-anchor. Must exceed one poll interval (~2s) plus network jitter.
+const SEEK_TOLERANCE_MS = 3000;
+
+/** Decide whether to re-anchor the scroll clock. Returns false for the normal
+ * per-poll progress advance (so the user's manual scroll offset and interaction
+ * pause survive across polls) and true only for a real discontinuity. */
+export function isPlaybackSeek(
+  realProgressMs: number,
+  anchorProgressMs: number,
+  elapsedSinceAnchorMs: number,
+  toleranceMs: number = SEEK_TOLERANCE_MS
+): boolean {
+  const expectedReal = anchorProgressMs + elapsedSinceAnchorMs;
+  return Math.abs(realProgressMs - expectedReal) > toleranceMs;
+}
+
 // Weight given to a "sparse" row (chord-only, no lyrics — e.g. finger-picking
 // intro, instrumental bridge). Lyric rows weight 1.0. Lower = scroll spends
 // less time on instrumental sections.
@@ -84,6 +102,26 @@ export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier 
   const userOffsetRef = useRef<number>(0);
   const lastComputedRef = useRef<number>(0);
   const mapRef = useRef<ReturnType<typeof buildRowMap> | null>(null);
+  const progressRef = useRef<number>(progressMs);
+
+  // Keep the latest real playback progress available to the loop and the seek
+  // detector WITHOUT making it a dependency of the RAF effect — otherwise the
+  // effect tears down and rebuilds on every 2s poll, wiping the user's scroll
+  // offset and interaction pause.
+  useEffect(() => {
+    progressRef.current = progressMs;
+  }, [progressMs]);
+
+  // On a real seek or track change (progress diverges from continuous 1x
+  // playback since the anchor), re-anchor the scroll clock but preserve the
+  // user's manual offset and pause. Normal polling never triggers this.
+  useEffect(() => {
+    if (!startRef.current) return;
+    const elapsed = performance.now() - startRef.current.at;
+    if (isPlaybackSeek(progressMs, startRef.current.progressMs, elapsed)) {
+      startRef.current = { progressMs, at: performance.now() };
+    }
+  }, [progressMs]);
 
   useEffect(() => {
     if (!enabled || !targetRef.current || durationMs <= 0) {
@@ -91,7 +129,7 @@ export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier 
       rafRef.current = null;
       return;
     }
-    startRef.current = { progressMs, at: performance.now() };
+    startRef.current = { progressMs: progressRef.current, at: performance.now() };
     userOffsetRef.current = 0;
     pauseUntilRef.current = 0;
     const el = targetRef.current;
@@ -105,6 +143,12 @@ export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier 
     // Rebuild on window resize (content reflow changes row tops)
     const onResize = () => rebuildMap();
     window.addEventListener("resize", onResize);
+
+    // Rebuild when the sheet DOM changes (song change, transpose, diagram toggle).
+    // The old code got this "for free" from the per-poll effect re-run; now that
+    // the effect is stable we observe the content directly.
+    const observer = new MutationObserver(() => rebuildMap());
+    observer.observe(el, { childList: true, subtree: true });
 
     const pause = () => {
       pauseUntilRef.current = performance.now() + USER_INTERACTION_PAUSE_MS;
@@ -146,9 +190,10 @@ export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier 
       el.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", onResize);
+      observer.disconnect();
       rebuildTimers.forEach(t => window.clearTimeout(t));
     };
-  }, [enabled, progressMs, durationMs, speedMultiplier, targetRef]);
+  }, [enabled, durationMs, speedMultiplier, targetRef]);
 
   return null;
 }
