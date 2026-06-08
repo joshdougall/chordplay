@@ -253,14 +253,14 @@ export default function HomePage() {
   }
 
   async function lockFuzzyMatch() {
-    if (!matchResp?.match || !trackId) return;
+    if (!prefs || !matchResp?.match || !trackId) return;
     const matchId = matchResp.match.id;
-    const newPrefs = {
+    const newPrefs: Prefs = {
       ...prefs,
-      trackOverrides: { ...(prefs?.trackOverrides ?? {}), [trackId]: matchId }
+      trackOverrides: { ...prefs.trackOverrides, [trackId]: matchId }
     };
     await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newPrefs) });
-    setPrefs(newPrefs as Prefs);
+    setPrefs(newPrefs);
     fetch(`/api/library/${encodeURIComponent(matchId)}/spotify-track`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
