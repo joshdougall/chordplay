@@ -14,7 +14,8 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { OverflowMenu } from "@/components/OverflowMenu";
 import { ShortcutsHelp } from "@/components/ShortcutsHelp";
 import type { LibraryEntry } from "@/lib/library/index";
-import type { Prefs } from "@/lib/prefs/store";
+import { DEFAULT_PREFS, type Prefs } from "@/lib/prefs/defaults";
+import { clientLog } from "@/lib/client-logger";
 
 type MatchResponse = {
   match: LibraryEntry | null;
@@ -59,7 +60,17 @@ export default function HomePage() {
   const [matchRefetch, setMatchRefetch] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { fetch("/api/prefs").then(r => r.json()).then(setPrefs); }, []);
+  useEffect(() => {
+    // Never leave prefs null: every control on this page is guarded on it, so a
+    // failed load silently disabled transpose, auto-scroll and split view.
+    fetch("/api/prefs")
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`prefs ${r.status}`))))
+      .then(setPrefs)
+      .catch(err => {
+        clientLog("error", "failed to load prefs, using defaults", { err: String(err) });
+        setPrefs(DEFAULT_PREFS);
+      });
+  }, []);
 
   useEffect(() => {
     (async () => {

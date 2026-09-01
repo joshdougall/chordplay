@@ -1,6 +1,7 @@
 import { readFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { atomicWrite } from "@/lib/fs/atomic";
+import { logger } from "@/lib/logger";
 import type { ChordEntry } from "./chord-db";
 
 export type UserChordDb = Record<string, ChordEntry>;
@@ -19,12 +20,18 @@ function pathFor(dataDir: string, userId: string): string {
 
 export async function readUserChordDb(dataDir: string, userId: string): Promise<UserChordDb> {
   validateUserId(userId);
+  let raw: string;
   try {
-    const raw = await readFile(pathFor(dataDir, userId), "utf8");
-    return JSON.parse(raw) as UserChordDb;
+    raw = await readFile(pathFor(dataDir, userId), "utf8");
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return {};
     throw err;
+  }
+  try {
+    return JSON.parse(raw) as UserChordDb;
+  } catch (err) {
+    logger.error({ err, userId }, "user-chord-db.json unparseable; falling back to empty");
+    return {};
   }
 }
 
