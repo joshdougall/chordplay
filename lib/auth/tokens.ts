@@ -1,5 +1,7 @@
-import { readFile, writeFile, rename, unlink, mkdir } from "node:fs/promises";
+import { readFile, unlink, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { atomicWrite } from "@/lib/fs/atomic";
+import { logger } from "@/lib/logger";
 import { encrypt, decrypt } from "./crypto";
 
 export type Tokens = {
@@ -23,14 +25,23 @@ function userDir(dataDir: string, userId: string): string {
 
 export async function readTokens(dataDir: string, key: Buffer, userId: string): Promise<Tokens | null> {
   validateUserId(userId);
+  let raw: string;
   try {
-    const raw = await readFile(join(userDir(dataDir, userId), FILE), "utf8");
+    raw = await readFile(join(userDir(dataDir, userId), FILE), "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw err;
+  }
+  try {
     const stored = JSON.parse(raw) as Stored;
     const refreshToken = decrypt(stored.blob, key);
     return { refreshToken, scopes: stored.scopes, issuedAt: stored.issuedAt };
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw err;
+    // Corrupt or undecryptable credentials are functionally absent. Returning
+    // null degrades to "reconnect Spotify", which is the recoverable path; a
+    // throw here 500s every authenticated route for that user instead.
+    logger.error({ err, userId }, "tokens.json unreadable; treating as disconnected");
+    return null;
   }
 }
 
@@ -43,10 +54,7 @@ export async function writeTokens(dataDir: string, key: Buffer, userId: string, 
     scopes: tokens.scopes,
     issuedAt: tokens.issuedAt
   };
-  const path = join(dir, FILE);
-  const tmp = `${path}.tmp.${process.pid}`;
-  await writeFile(tmp, JSON.stringify(stored), { mode: 0o600 });
-  await rename(tmp, path);
+  await atomicWrite(join(dir, FILE), JSON.stringify(stored), { mode: 0o600 });
 }
 
 export async function deleteTokens(dataDir: string, userId: string): Promise<void> {
