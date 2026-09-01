@@ -1,5 +1,6 @@
-import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
+import { readFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { atomicWrite } from "@/lib/fs/atomic";
 
 export type Prefs = {
   autoScroll: boolean;
@@ -40,8 +41,5 @@ export async function writePrefs(dataDir: string, userId: string, prefs: Prefs):
   validateUserId(userId);
   const dir = userDir(dataDir, userId);
   await mkdir(dir, { recursive: true });
-  const path = join(dir, FILE);
-  const tmp = `${path}.tmp.${process.pid}`;
-  await writeFile(tmp, JSON.stringify(prefs, null, 2), "utf8");
-  await rename(tmp, path);
+  await atomicWrite(join(dir, FILE), JSON.stringify(prefs, null, 2));
 }

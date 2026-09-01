@@ -1,5 +1,6 @@
-import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
+import { readFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { atomicWrite } from "@/lib/fs/atomic";
 import type { ChordEntry } from "./chord-db";
 
 export type UserChordDb = Record<string, ChordEntry>;
@@ -31,7 +32,5 @@ export async function writeUserChordDb(dataDir: string, userId: string, db: User
   validateUserId(userId);
   const full = pathFor(dataDir, userId);
   await mkdir(join(dataDir, "users", userId), { recursive: true });
-  const tmp = `${full}.tmp.${process.pid}`;
-  await writeFile(tmp, JSON.stringify(db, null, 2), "utf8");
-  await rename(tmp, full);
+  await atomicWrite(full, JSON.stringify(db, null, 2));
 }

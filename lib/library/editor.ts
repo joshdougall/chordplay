@@ -1,7 +1,8 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { Format } from "./format";
 import { detectKey } from "@/lib/music/key-detection";
+import { atomicWrite } from "@/lib/fs/atomic";
 
 export function safePath(root: string, id: string): string {
   if (isAbsolute(id)) throw new Error("absolute paths not allowed");
@@ -14,9 +15,7 @@ export function safePath(root: string, id: string): string {
 export async function writeEntry(root: string, id: string, content: string): Promise<void> {
   const target = safePath(root, id);
   await mkdir(dirname(target), { recursive: true });
-  const tmp = `${target}.tmp.${process.pid}`;
-  await writeFile(tmp, content, "utf8");
-  await rename(tmp, target);
+  await atomicWrite(target, content);
 }
 
 export async function deleteEntry(root: string, id: string): Promise<void> {

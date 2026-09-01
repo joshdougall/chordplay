@@ -1,5 +1,6 @@
-import { readFile, writeFile, rename, unlink, mkdir } from "node:fs/promises";
+import { readFile, unlink, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { atomicWrite } from "@/lib/fs/atomic";
 import { encrypt, decrypt } from "./crypto";
 
 export type Tokens = {
@@ -43,10 +44,7 @@ export async function writeTokens(dataDir: string, key: Buffer, userId: string, 
     scopes: tokens.scopes,
     issuedAt: tokens.issuedAt
   };
-  const path = join(dir, FILE);
-  const tmp = `${path}.tmp.${process.pid}`;
-  await writeFile(tmp, JSON.stringify(stored), { mode: 0o600 });
-  await rename(tmp, path);
+  await atomicWrite(join(dir, FILE), JSON.stringify(stored), { mode: 0o600 });
 }
 
 export async function deleteTokens(dataDir: string, userId: string): Promise<void> {

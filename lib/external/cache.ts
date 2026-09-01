@@ -1,4 +1,5 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, mkdir } from "node:fs/promises";
+import { atomicWrite } from "@/lib/fs/atomic";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { getConfig } from "../config";
@@ -45,5 +46,5 @@ export async function writeCached(
   await mkdir(dir, { recursive: true });
   const path = join(dir, `${cacheKey(provider, artist, title)}.json`);
   const entry: CacheEntry = { result, at: Date.now() };
-  await writeFile(path, JSON.stringify(entry), "utf8");
+  await atomicWrite(path, JSON.stringify(entry));
 }
