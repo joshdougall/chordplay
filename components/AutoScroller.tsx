@@ -5,6 +5,9 @@ import { useEffect, useRef } from "react";
 type Props = {
   enabled: boolean;
   progressMs: number;
+  /** How stale progressMs already was when it reached us, in ms. */
+  sampleAgeMs?: number;
+  isPlaying?: boolean;
   durationMs: number;
   speedMultiplier?: number;
   targetRef: React.RefObject<HTMLElement | null>;
@@ -17,7 +20,72 @@ const USER_INTERACTION_PAUSE_MS = 4000;
 // How far real playback progress may diverge from continuous 1x playback since
 // the scroll clock was anchored before we treat it as a seek / track change and
 // re-anchor. Must exceed one poll interval (~2s) plus network jitter.
-const SEEK_TOLERANCE_MS = 3000;
+export const SEEK_TOLERANCE_MS = 3000;
+
+/** Fraction of the remaining divergence to absorb per poll. */
+const DRIFT_RATE = 0.25;
+/** Hard ceiling on one drift step, so a correction is never a visible jump. */
+export const MAX_DRIFT_STEP_MS = 250;
+/** Ceiling on latency compensation, so a stale sample cannot fling the sheet. */
+const MAX_COMPENSATION_MS = 10_000;
+
+/**
+ * A polled progress sample is already old by the time it arrives: the server
+ * caches now-playing for 1s, the client polls every 2s, and the network adds
+ * its own delay. Anchoring the scroll clock straight to that value started the
+ * sheet 1-3s behind the music and it stayed there, because the divergence was
+ * smaller than SEEK_TOLERANCE_MS and so was deliberately never corrected.
+ */
+export function compensateProgress(
+  polledProgressMs: number,
+  fetchedAt: number,
+  now: number,
+  isPlaying: boolean
+): number {
+  if (!isPlaying) return polledProgressMs;
+  const age = Math.min(Math.max(0, now - fetchedAt), MAX_COMPENSATION_MS);
+  return polledProgressMs + age;
+}
+
+/** Where the scroll clock believes the song is, at `now`. */
+export function virtualProgressAt(
+  anchor: { progressMs: number; at: number },
+  now: number,
+  speedMultiplier: number
+): number {
+  return anchor.progressMs + (now - anchor.at) * speedMultiplier;
+}
+
+/**
+ * Decide how the scroll clock should track real playback.
+ *
+ * A large divergence is a seek or a track change, so re-anchor hard. A small
+ * one is accumulated latency and jitter, so absorb a capped fraction of it per
+ * poll by moving the anchor's progress while leaving its timestamp alone. That
+ * converges to zero steady-state error without a jump, and because it shifts
+ * the anchor rather than the offset, the user's manual scroll correction and
+ * their interaction pause both survive.
+ */
+export function nextAnchor(
+  anchor: { progressMs: number; at: number },
+  realProgressMs: number,
+  now: number,
+  durationMs: number,
+  toleranceMs: number = SEEK_TOLERANCE_MS
+): { progressMs: number; at: number; reason: "seek" | "drift" | "none" } {
+  const elapsed = now - anchor.at;
+  const divergence = realProgressMs - (anchor.progressMs + elapsed);
+
+  if (isPlaybackSeek(realProgressMs, anchor.progressMs, elapsed, toleranceMs)) {
+    return { progressMs: realProgressMs, at: now, reason: "seek" };
+  }
+
+  const step = Math.sign(divergence) * Math.min(Math.abs(divergence) * DRIFT_RATE, MAX_DRIFT_STEP_MS);
+  if (Math.abs(step) < 1) return { ...anchor, reason: "none" };
+
+  const progressMs = Math.max(0, Math.min(durationMs, anchor.progressMs + step));
+  return { progressMs, at: anchor.at, reason: "drift" };
+}
 
 /** Decide whether to re-anchor the scroll clock. Returns false for the normal
  * per-poll progress advance (so the user's manual scroll offset and interaction
@@ -95,7 +163,7 @@ function weightedProgressToScrollTop(
   return Math.max(0, Math.min(maxScroll, interpolated));
 }
 
-export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier = 1, targetRef }: Props) {
+export function AutoScroller({ enabled, progressMs, sampleAgeMs = 0, isPlaying = true, durationMs, speedMultiplier = 1, targetRef }: Props) {
   const rafRef = useRef<number | null>(null);
   const startRef = useRef<{ progressMs: number; at: number } | null>(null);
   const pauseUntilRef = useRef<number>(0);
@@ -103,6 +171,9 @@ export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier 
   const lastComputedRef = useRef<number>(0);
   const mapRef = useRef<ReturnType<typeof buildRowMap> | null>(null);
   const progressRef = useRef<number>(progressMs);
+  const sampleAgeRef = useRef<number>(sampleAgeMs);
+  const receivedAtRef = useRef<number>(performance.now());
+  const speedRef = useRef<number>(speedMultiplier);
 
   // Keep the latest real playback progress available to the loop and the seek
   // detector WITHOUT making it a dependency of the RAF effect — otherwise the
@@ -110,18 +181,32 @@ export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier 
   // offset and interaction pause.
   useEffect(() => {
     progressRef.current = progressMs;
-  }, [progressMs]);
+    sampleAgeRef.current = sampleAgeMs;
+    receivedAtRef.current = performance.now();
+  }, [progressMs, sampleAgeMs]);
+
+  // Speed lives in a ref so changing it mid-song does not re-run the RAF effect,
+  // which used to reset userOffsetRef and throw away the user's manual nudge.
+  useEffect(() => {
+    const prev = speedRef.current;
+    speedRef.current = speedMultiplier;
+    if (prev !== speedMultiplier && startRef.current) {
+      // Re-anchor to where the sheet currently is, so the speed change takes
+      // effect from here rather than snapping to a recomputed position.
+      const now = performance.now();
+      startRef.current = { progressMs: virtualProgressAt(startRef.current, now, prev), at: now };
+    }
+  }, [speedMultiplier]);
 
   // On a real seek or track change (progress diverges from continuous 1x
   // playback since the anchor), re-anchor the scroll clock but preserve the
   // user's manual offset and pause. Normal polling never triggers this.
   useEffect(() => {
     if (!startRef.current) return;
-    const elapsed = performance.now() - startRef.current.at;
-    if (isPlaybackSeek(progressMs, startRef.current.progressMs, elapsed)) {
-      startRef.current = { progressMs, at: performance.now() };
-    }
-  }, [progressMs]);
+    const now = performance.now();
+    const real = compensateProgress(progressMs, now - sampleAgeMs, now, isPlaying);
+    startRef.current = nextAnchor(startRef.current, real, now, durationMs);
+  }, [progressMs, sampleAgeMs, isPlaying, durationMs]);
 
   useEffect(() => {
     if (!enabled || !targetRef.current || durationMs <= 0) {
@@ -129,7 +214,16 @@ export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier 
       rafRef.current = null;
       return;
     }
-    startRef.current = { progressMs: progressRef.current, at: performance.now() };
+    const t0 = performance.now();
+    startRef.current = {
+      progressMs: compensateProgress(
+        progressRef.current,
+        receivedAtRef.current - sampleAgeRef.current,
+        t0,
+        true
+      ),
+      at: t0,
+    };
     userOffsetRef.current = 0;
     pauseUntilRef.current = 0;
     const el = targetRef.current;
@@ -170,7 +264,7 @@ export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier 
       const now = performance.now();
       if (now >= pauseUntilRef.current) {
         const elapsed = now - startRef.current.at;
-        const virtualProgress = startRef.current.progressMs + elapsed * speedMultiplier;
+        const virtualProgress = startRef.current.progressMs + elapsed * speedRef.current;
         const pct = Math.max(0, Math.min(1, virtualProgress / durationMs));
         const max = Math.max(0, el.scrollHeight - el.clientHeight);
         const computed = mapRef.current
@@ -193,7 +287,10 @@ export function AutoScroller({ enabled, progressMs, durationMs, speedMultiplier 
       observer.disconnect();
       rebuildTimers.forEach(t => window.clearTimeout(t));
     };
-  }, [enabled, durationMs, speedMultiplier, targetRef]);
+  // speedMultiplier deliberately excluded: it is read from speedRef so a speed
+  // change does not tear down the loop and discard the user's manual offset.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, durationMs, targetRef]);
 
   return null;
 }
