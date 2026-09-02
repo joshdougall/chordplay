@@ -50,6 +50,22 @@ async function getGuitarChords(): Promise<Record<string, ChordsDbEntry[]>> {
  * @param name e.g. "C", "Cm", "Cmaj7", "C/E", "F#dim7"
  * @param userOverrides optional per-user chord overrides checked first
  */
+/**
+ * Is there a voicing for exactly this chord, or will lookupChord fall back to
+ * the base shape with the bass note silently dropped?
+ *
+ * The curated set has 8 slash voicings; the library uses 15 distinct slash
+ * chords. The other 9 (120 occurrences, 96 of them D/F#) rendered the plain
+ * chord's diagram with no indication that the bass note was missing, while the
+ * README promised slash inversions worked.
+ */
+export function hasExactVoicing(name: string, userOverrides?: UserChordDb): boolean {
+  if (userOverrides?.[name]) return true;
+  if (CHORD_DB[name]) return true;
+  // No bass note means there is nothing to lose in the fallback.
+  return !/\/[A-Ga-g][#b]?$/.test(name.trim());
+}
+
 export async function lookupChord(name: string, userOverrides?: UserChordDb): Promise<ChordEntry | null> {
   // Strip slash-bass before curated lookup ("C/E" -> "C", "G/B" -> "G")
   const nameWithoutBass = name.replace(/\/[A-Ga-g][#b]?$/, "").trim();

@@ -13,8 +13,14 @@ export function chordDedupKey(name: string): string {
   return name.replace(/\/[A-Ga-g][#b]?$/, "").trim();
 }
 
-/** Extract ordered unique chord names from a parsed Song, filtering section labels
- *  and deduplicating slash chords that resolve to the same base shape. */
+/** Extract ordered unique chord names from a parsed Song, filtering section labels.
+ *
+ *  Deduplicates on the EXACT name. It used to dedupe on chordDedupKey, which
+ *  strips the bass note, so D, D/C, D/B and D/A collapsed into one palette
+ *  entry and whichever appeared first won. That threw away the curated D/C and
+ *  D/B voicings entirely, and hid D/F# — 96 uses, the most-used slash chord in
+ *  the library. chordDedupKey is still the right answer when you specifically
+ *  want the base shape; it just isn't right here. */
 export function extractUniqueChords(song: Song): string[] {
   const seen = new Set<string>();
   const ordered: string[] = [];
@@ -23,9 +29,8 @@ export function extractUniqueChords(song: Song): string[] {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const chords: string = (item as any).chords ?? "";
       if (!chords || !isChordName(chords)) continue;
-      const key = chordDedupKey(chords);
-      if (!seen.has(key)) {
-        seen.add(key);
+      if (!seen.has(chords)) {
+        seen.add(chords);
         ordered.push(chords);
       }
     }
