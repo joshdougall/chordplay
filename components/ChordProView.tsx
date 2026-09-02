@@ -5,6 +5,7 @@ import { ChordProParser, HtmlDivFormatter } from "chordsheetjs";
 import type { Song } from "chordsheetjs";
 import { ChordDiagram } from "@/components/ChordDiagram";
 import { detectKey, capoSuggestion, normalizeChordRoot } from "@/lib/music/key-detection";
+import { parseCapoDirective } from "@/lib/chordpro/capo";
 import { stripMetaPreamble } from "@/lib/chordpro/strip-meta";
 import { isChordName, extractUniqueChords } from "@/lib/chordpro/extract-chords";
 import { sanitizeChordHtml } from "@/lib/chordpro/sanitize";
@@ -47,7 +48,7 @@ export function ChordProView({
 }) {
   const containsTab = useMemo(() => hasAsciiTabLines(source), [source]);
 
-  const { html, uniqueChords, keyLabel, capo } = useMemo(() => {
+  const { html, uniqueChords, keyLabel, capo, sheetCapo } = useMemo(() => {
     try {
       const stripped = stripMetaPreamble(source);
       const song = new ChordProParser().parse(stripped);
@@ -68,6 +69,7 @@ export function ChordProView({
         uniqueChords: showChordDiagrams ? extractUniqueChords(transposed) : [],
         keyLabel,
         capo,
+        sheetCapo: parseCapoDirective(source),
       };
     } catch (err) {
       return {
@@ -75,6 +77,7 @@ export function ChordProView({
         uniqueChords: [],
         keyLabel: null,
         capo: null,
+        sheetCapo: parseCapoDirective(source),
       };
     }
   }, [source, transpose, showChordDiagrams]);
@@ -127,11 +130,15 @@ export function ChordProView({
 
   return (
     <div ref={rootRef}>
-      {keyLabel && (
+      {(keyLabel || sheetCapo) && (
         <div className="mb-2 text-xs uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>
-          {capo
-            ? `Key · ${keyLabel} · capo ${capo.capoFret} → play in ${capo.shapeKey} shapes`
-            : `Key · ${keyLabel}`}
+          {[
+            keyLabel ? `Key · ${keyLabel}` : null,
+            // The capo the sheet is written for. Previously never shown at all,
+            // so a player picked up the guitar in the wrong key.
+            sheetCapo ? `capo ${sheetCapo}` : null,
+            capo ? `capo ${capo.capoFret} → play in ${capo.shapeKey} shapes` : null,
+          ].filter(Boolean).join(" · ")}
         </div>
       )}
       <div className="md:flex md:flex-row md:gap-4">

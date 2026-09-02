@@ -56,27 +56,45 @@ describe("stripMetaPreamble — credit lines", () => {
   });
 });
 
+// EXPECTATION REVERSED, deliberately. These four originally asserted that a
+// bare section header at the top was junk to be stripped. In production that
+// rule deleted the header AND the chord line under it: two library sheets lost
+// their [Intro], their intro chord sequence, their [Verse 1] and the first
+// verse chord, and opened on a lyric with no chord. A section header is not
+// furniture — it means the song has started, so it now ends the preamble and
+// is kept. A header carrying a chord summary ("INTRO: A") is still dropped,
+// since that is a scraper artefact rather than a marker.
 describe("stripMetaPreamble — bare section headers", () => {
-  it("strips 'INTRO: A' at the top", () => {
+  it("strips 'INTRO: A' at the top, which is a chord summary not a marker", () => {
     const input = "INTRO: A\n\n[C]Hello [G]world";
     const result = stripMetaPreamble(input);
     expect(result).not.toContain("INTRO: A");
     expect(result).toContain("[C]Hello [G]world");
   });
 
-  it("strips bare 'INTRO' at the top", () => {
+  it("KEEPS bare 'INTRO' at the top — it marks where the song starts", () => {
     const input = "INTRO\n[C]Hello";
-    expect(stripMetaPreamble(input)).not.toContain("INTRO");
+    const result = stripMetaPreamble(input);
+    expect(result).toContain("INTRO");
+    expect(result).toContain("[C]Hello");
   });
 
-  it("strips 'Verse 1:' at the top", () => {
+  it("KEEPS 'Verse 1:' at the top", () => {
     const input = "Verse 1:\n[C]Hello";
-    expect(stripMetaPreamble(input)).not.toContain("Verse 1:");
+    expect(stripMetaPreamble(input)).toContain("Verse 1:");
   });
 
-  it("strips '[Chorus]' at the top", () => {
+  it("KEEPS '[Chorus]' at the top", () => {
     const input = "[Chorus]\n[C]Hello";
-    expect(stripMetaPreamble(input)).not.toContain("[Chorus]");
+    expect(stripMetaPreamble(input)).toContain("[Chorus]");
+  });
+
+  it("keeps the bare chord line that follows a kept header", () => {
+    const input = "[Intro]\nDm C G\n\n[Verse 1]\nAm F\nsome words";
+    const result = stripMetaPreamble(input);
+    expect(result).toContain("[Intro]");
+    expect(result).toContain("Dm C G");
+    expect(result).toContain("Am F");
   });
 
   it("preserves section headers once real content has started", () => {
