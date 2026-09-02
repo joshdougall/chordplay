@@ -151,7 +151,12 @@ export function ChordProView({
   return (
     <div ref={rootRef}>
       {(keyLabel || sheetCapo) && (
-        <div className="mb-2 text-xs uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>
+        // Sticky: this is the line you read before you start playing, and it
+        // used to scroll away while the chord diagrams above it stayed pinned.
+        <div
+          className="sticky top-0 z-20 mb-2 py-1 text-xs uppercase tracking-wide"
+          style={{ color: "var(--ink-faint)", backgroundColor: "var(--bg)" }}
+        >
           {[
             keyLabel ? `Key · ${keyLabel}` : null,
             // The capo the sheet is written for. Previously never shown at all,

@@ -6,11 +6,11 @@ const config: Config = {
     extend: {
       colors: {
         bg: { DEFAULT: "#1a1614", surface: "#252220", alt: "#2e2a27" },
-        ink: { DEFAULT: "#f5f0e6", muted: "#a89e8e", faint: "#6b635a" },
+        ink: { DEFAULT: "#f5f0e6", muted: "#a89e8e", faint: "#9a9084" },
         accent: { DEFAULT: "#e8b86b", hover: "#f2c278" },
-        brand: { line: "#3a352f" },
+        brand: { line: "#6b6459" },
         success: "#8fa869",
-        danger: "#c47066"
+        danger: "#d4837a"
       },
       fontFamily: {
         lora: ["var(--font-lora)", "Georgia", "serif"],

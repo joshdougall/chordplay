@@ -1,3 +1,4 @@
+import { isUserAllowed } from "@/lib/auth/allowlist";
 import { cookies } from "next/headers";
 import { encrypt, decrypt } from "./crypto";
 import { getConfig } from "../config";
@@ -16,6 +17,9 @@ export async function getSession(): Promise<Session | null> {
     const plain = decrypt(raw, cfg.appSecret);
     const parsed = JSON.parse(plain) as Session;
     if (typeof parsed.userId !== "string") return null;
+    // Re-checked on every read, not just at login, so removing someone from
+    // CHORDPLAY_ALLOWED_USERS invalidates the cookie they already hold.
+    if (!isUserAllowed(parsed.userId, cfg.allowedUserIds)) return null;
     return parsed;
   } catch {
     return null;

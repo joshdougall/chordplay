@@ -6,14 +6,18 @@
   --bg: #1a1614;
   --bg-surface: #252220;
   --bg-alt: #2e2a27;
-  --border: #3a352f;
+  /* was #3a352f: 1.48:1 on --bg, so button outlines were invisible */
+  --border: #6b6459;
   --ink: #f5f0e6;
   --ink-muted: #a89e8e;
-  --ink-faint: #6b635a;
+  /* was #6b635a: 3.04:1 on --bg and 2.41:1 on --bg-alt, and it carries the
+     KEY/CAPO line, which is what you read BEFORE you start playing */
+  --ink-faint: #9a9084;
   --accent: #e8b86b;
   --accent-hover: #f2c278;
   --success: #8fa869;
-  --danger: #c47066;
+  /* was #c47066: 4.41:1, and it carries the playback-error banner */
+  --danger: #d4837a;
 }
 
 html, body { height: 100%; }
@@ -30,7 +34,20 @@ body {
   font-family: var(--font-mono-brand, "JetBrains Mono", monospace);
 }
 .chordpro .paragraph { margin-bottom: 1.25rem; }
-.chordpro .row { display: flex; flex-wrap: wrap; align-items: flex-end; }
+.chordpro .row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  /* A wrapped continuation used to sit 0px from the next song line, exactly as
+     far as two genuinely separate lines, so you could not tell which you were
+     looking at. Separating the ROWS makes the tighter wrap read as one line. */
+  margin-bottom: 0.45rem;
+}
+/* Continuations of a wrapped row are inset, so the left edge tells you this is
+   the same lyric line carrying on rather than a new one. */
+.chordpro .row > .column:not(:first-child) { margin-left: 0; }
+.chordpro .row { padding-left: 1.25rem; text-indent: 0; }
+.chordpro .row > .column:first-child { margin-left: -1.25rem; }
 .chordpro .column {
   display: inline-flex;
   flex-direction: column;
