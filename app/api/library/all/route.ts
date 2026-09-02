@@ -11,6 +11,9 @@ export async function GET() {
     title: e.title,
     artist: e.artist,
     format: e.format,
+    // Written and parsed all along, just never returned, so two versions of one
+    // song showed as visually identical cards with no way to tell them apart.
+    versionName: e.versionName ?? null,
     spotifyTrackId: e.spotifyTrackId,
     parseError: e.parseError ?? false
   }));

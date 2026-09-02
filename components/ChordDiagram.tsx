@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { lookupChord } from "@/lib/chord-diagrams/chord-lookup";
+import { lookupChord, hasExactVoicing } from "@/lib/chord-diagrams/chord-lookup";
 import type { UserChordDb } from "@/lib/chord-diagrams/user-chord-db";
 
 const SIZE_MAP = { sm: 90, md: 120, lg: 180 } as const;
@@ -71,6 +71,10 @@ export function ChordDiagram({
     async function render() {
       const overrides = overridesCache ?? await fetchOverrides();
       const chord = await lookupChord(name, overrides);
+      // A slash chord with no curated voicing falls back to the base shape with
+      // the bass note dropped. Say so rather than showing a confidently wrong
+      // diagram: D/F# alone accounts for 96 uses in the library.
+      const approximate = !hasExactVoicing(name, overrides);
 
       if (cancelled || !container) return;
 
@@ -123,6 +127,16 @@ export function ChordDiagram({
         .chord(chord)
         .draw();
 
+      // Mark an approximate voicing under the diagram. The shape drawn is the
+      // base chord, so the bass note the slash asks for is not in it.
+      if (approximate) {
+        const note = document.createElement("div");
+        note.style.cssText =
+          "font-size:0.6rem;line-height:1.2;text-align:center;color:var(--ink-faint);margin-top:0.1rem;";
+        note.textContent = `${baseOf(name)} shape · no ${bassOf(name)} bass`;
+        container.appendChild(note);
+      }
+
       // Scale the generated SVG to fit the size bucket
       const svg = container.querySelector("svg");
       if (svg) {
@@ -147,4 +161,15 @@ export function ChordDiagram({
       title={name}
     />
   );
+}
+
+/** "D/F#" -> "D" */
+function baseOf(name: string): string {
+  return name.replace(/\/[A-Ga-g][#b]?$/, "").trim();
+}
+
+/** "D/F#" -> "F#" */
+function bassOf(name: string): string {
+  const m = /\/([A-Ga-g][#b]?)$/.exec(name.trim());
+  return m ? m[1].toUpperCase() : "";
 }

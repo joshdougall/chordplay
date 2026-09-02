@@ -452,7 +452,7 @@ export default function HomePage() {
                 <button
                   key={speed}
                   onClick={() => setAutoScrollSpeed(speed)}
-                  className="px-2 py-0.5 rounded text-xs transition-colors"
+                  className="min-h-10 px-3 xl:min-h-0 xl:px-2 xl:py-0.5 rounded text-xs transition-colors"
                   style={active
                     ? { backgroundColor: "var(--accent)", color: "var(--bg)" }
                     : { backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)", border: "1px solid var(--border)" }
@@ -471,13 +471,13 @@ export default function HomePage() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setFontScale((prefs.fontScale ?? 1) - FONT_SCALE_STEP)}
-              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              className="h-10 min-w-10 xl:h-7 xl:min-w-7 px-2 rounded flex items-center justify-center"
               style={btnStyle}
               aria-label="Smaller sheet text"
             >A−</button>
             <button
               onClick={() => setFontScale((prefs.fontScale ?? 1) + FONT_SCALE_STEP)}
-              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              className="h-10 min-w-10 xl:h-7 xl:min-w-7 px-2 rounded flex items-center justify-center"
               style={btnStyle}
               aria-label="Larger sheet text"
             >A+</button>
@@ -488,7 +488,7 @@ export default function HomePage() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setTranspose(transposeOffset - 1)}
-              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              className="h-10 min-w-10 xl:h-7 xl:min-w-7 px-2 rounded flex items-center justify-center"
               style={btnStyle}
               aria-label="Transpose down"
             >−</button>
@@ -497,7 +497,7 @@ export default function HomePage() {
             </span>
             <button
               onClick={() => setTranspose(transposeOffset + 1)}
-              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              className="h-10 min-w-10 xl:h-7 xl:min-w-7 px-2 rounded flex items-center justify-center"
               style={btnStyle}
               aria-label="Transpose up"
             >+</button>
@@ -580,7 +580,7 @@ export default function HomePage() {
           <div className="flex items-center gap-1 ml-auto">
             <button
               onClick={() => playbackAction("previous")}
-              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              className="h-10 min-w-10 xl:h-7 xl:min-w-7 px-2 rounded flex items-center justify-center"
               style={btnStyle}
               title="Previous (j / ←)"
               aria-label="Previous track"
@@ -589,7 +589,7 @@ export default function HomePage() {
             </button>
             <button
               onClick={() => playbackAction("toggle")}
-              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              className="h-10 min-w-10 xl:h-7 xl:min-w-7 px-2 rounded flex items-center justify-center"
               style={btnStyle}
               title="Play / Pause (space / k)"
               aria-label="Play or pause"
@@ -598,7 +598,7 @@ export default function HomePage() {
             </button>
             <button
               onClick={() => playbackAction("next")}
-              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              className="h-10 min-w-10 xl:h-7 xl:min-w-7 px-2 rounded flex items-center justify-center"
               style={btnStyle}
               title="Next (l / →)"
               aria-label="Next track"

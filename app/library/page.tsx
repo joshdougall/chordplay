@@ -12,6 +12,7 @@ type LibraryEntry = {
   title: string;
   artist: string;
   format: string;
+  versionName?: string | null;
   spotifyTrackId?: string;
   parseError: boolean;
   albumArt?: string;
@@ -70,7 +71,15 @@ function LibraryCard({ entry }: { entry: LibraryEntry }) {
           {entry.parseError && <span className="ml-1 text-xs" style={{ color: "var(--danger)" }}>(err)</span>}
         </div>
         <div className="text-xs truncate mt-0.5" style={{ color: "var(--ink-muted)" }}>{entry.artist}</div>
-        <div className="text-xs mt-1" style={{ color: "var(--ink-faint)" }}>{entry.format}</div>
+        <div className="text-xs mt-1 flex items-center gap-2" style={{ color: "var(--ink-faint)" }}>
+          <span>{entry.format}</span>
+          {entry.versionName && (
+            <span
+              className="px-1.5 py-0.5 rounded"
+              style={{ backgroundColor: "var(--bg-alt)", color: "var(--ink-muted)" }}
+            >{entry.versionName}</span>
+          )}
+        </div>
       </div>
     </Link>
   );
@@ -142,7 +151,8 @@ export default function LibraryPage() {
   const filtered = entries.filter(e => {
     if (!filter) return true;
     const q = filter.toLowerCase();
-    return e.title.toLowerCase().includes(q) || e.artist.toLowerCase().includes(q);
+    return e.title.toLowerCase().includes(q) || e.artist.toLowerCase().includes(q)
+      || (e.versionName ?? "").toLowerCase().includes(q);
   });
 
   async function runSearch(e: React.FormEvent) {

@@ -104,33 +104,43 @@ describe("extractChordsFromSource — section label filtering", () => {
   });
 });
 
-describe("extractChordsFromSource — slash chord deduplication", () => {
-  it("only one D-family chord appears in the Dylan fixture (whichever comes first)", () => {
-    // The fixture has [D]drenched ... [D/C]bone — plain D arrives before D/C
-    // so D wins the slot and D/C, D/B, D/A are all deduped away.
+// EXPECTATIONS REVERSED, deliberately. These asserted that only one D-family
+// chord survived, and the original comment stated the mechanism as intent:
+// "plain D arrives before D/C so D wins the slot and D/C, D/B, D/A are all
+// deduped away."
+//
+// In this very fixture, D -> D/C -> D/B -> D/A is a descending bass walk and is
+// the guitar part. All four have curated voicings in CHORD_DB, so collapsing
+// them showed one D diagram and discarded three correct shapes the player needs.
+// chordDedupKey still strips the bass when something genuinely wants the base
+// shape; the palette just should not use it.
+describe("extractChordsFromSource — slash chords keep their own entries", () => {
+  it("shows the whole D-family bass walk in the Dylan fixture", () => {
     const source = fixture("times-they-are-a-changin.pro");
     const chords = extractChordsFromSource(source);
 
     const dFamily = chords.filter(c => c === "D" || c.startsWith("D/"));
-    expect(dFamily).toHaveLength(1);
+    expect(dFamily.length).toBeGreaterThan(1);
+    expect(dFamily).toContain("D");
+    expect(dFamily).toContain("D/C");
   });
 
-  it("D/C wins when it appears before plain D", () => {
+  it("keeps each inversion in the order it is played", () => {
     const source = "[D/C]bone [D/B]savin [D/A]stone [D]plain";
     const chords = extractChordsFromSource(source);
 
     const dFamily = chords.filter(c => c === "D" || c.startsWith("D/"));
-    expect(dFamily).toHaveLength(1);
-    expect(dFamily[0]).toBe("D/C");
+    expect(dFamily).toEqual(["D/C", "D/B", "D/A", "D"]);
   });
 
-  it("does not produce duplicate dedup keys", () => {
+  it("still produces no duplicate entries", () => {
     const source = fixture("times-they-are-a-changin.pro");
     const chords = extractChordsFromSource(source);
 
-    const keys = chords.map(c => chordDedupKey(c));
-    const uniqueKeys = new Set(keys);
-    expect(keys.length).toBe(uniqueKeys.size);
+    // The invariant is now one entry per EXACT chord name. Dedup keys are
+    // intentionally no longer unique here: D and D/C share the key "D" and
+    // both deserve their own diagram.
+    expect(chords.length).toBe(new Set(chords).size);
   });
 
   it("keeps distinct base chords separate", () => {
