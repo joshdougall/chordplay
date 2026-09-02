@@ -116,14 +116,25 @@ export default function HomePage() {
     setSelectedVersionId(null);
 
     if (!trackId || !effectiveTrack) { setMatchResp(null); setContent(null); return; }
+
+    // 1.0.4 fixed this race in QuickAddForm but not here. This effect does TWO
+    // sequential fetches (match, then the entry), with no cancellation, and
+    // called setContent unconditionally — so skipping tracks left several in
+    // flight and whichever resolved last won, rendering one song's sheet under
+    // another song's header. Content was also never cleared on a track change,
+    // so the previous sheet stayed on screen during the gap.
+    const ac = new AbortController();
+    setContent(null);
+
     (async () => {
       const url = new URL("/api/library/match", window.location.origin);
       url.searchParams.set("track_id", trackId);
       url.searchParams.set("title", effectiveTrack.title);
       url.searchParams.set("artist", effectiveTrack.artists.join(", "));
-      const res = await fetch(url);
-      if (!res.ok) return;
+      const res = await fetch(url, { signal: ac.signal });
+      if (!res.ok || ac.signal.aborted) return;
       const data = (await res.json()) as MatchResponse;
+      if (ac.signal.aborted) return;
       setMatchResp(data);
       if (data.match) {
         // Silently bake in spotify_track_id for exact-by-key matches that don't have it yet
@@ -143,15 +154,21 @@ export default function HomePage() {
           if (preferred) entryToLoad = preferred;
         }
 
-        const r = await fetch(`/api/library/${encodeURIComponent(entryToLoad.id)}`);
-        if (r.ok) {
+        const r = await fetch(`/api/library/${encodeURIComponent(entryToLoad.id)}`, { signal: ac.signal });
+        if (r.ok && !ac.signal.aborted) {
           const { content: c } = await r.json();
-          setContent(c);
+          if (!ac.signal.aborted) setContent(c);
         }
-      } else {
+      } else if (!ac.signal.aborted) {
         setContent(null);
       }
-    })();
+    })().catch(err => {
+      if ((err as Error)?.name !== "AbortError") {
+        clientLog("error", "library match failed", { err: String(err) });
+      }
+    });
+
+    return () => ac.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackId, matchRefetch]);
 
@@ -270,11 +287,15 @@ export default function HomePage() {
     setPlaybackError(null);
     try {
       const res = await fetch(`/api/spotify/playback?action=${action}`, { method: "POST" });
-      if (res.status === 403) {
-        setPlaybackError("Playback control requires re-authentication. Visit Settings to reconnect.");
+      if (!res.ok) {
+        // The route used to answer 200 {ok:true} for everything except 403, so
+        // the commonest failure — no active Spotify device — showed nothing at
+        // all and pressing the button again was the only available response.
+        const body = await res.json().catch(() => null);
+        setPlaybackError(body?.error ?? `Playback failed (${res.status}).`);
       }
     } catch {
-      // silently ignore network errors
+      setPlaybackError("Could not reach Chordplay. Check the connection and try again.");
     }
   }
 
@@ -413,7 +434,9 @@ export default function HomePage() {
     "a": () => toggleAutoScroll(),
     "e": () => { if (effectiveMatch) setEditing(e => !e); },
     "?": () => setShowShortcuts(s => !s),
-  });
+  },
+  // Off while a modal or the editor owns the keyboard.
+  !showShortcuts && !showLibraryPicker && !editing);
 
   if (connected === false) return <ConnectSpotify />;
   if (connected === null) return <div className="p-8" style={{ color: "var(--ink-muted)" }}>Loading…</div>;
