@@ -92,8 +92,12 @@ async function fetchFn(
   const results = await searchSongsterr(artist, title);
   if (!results || results.length === 0) return null;
 
+  // hasChords was parsed and never used. Songsterr's tab data is Guitar Pro
+  // binary and this provider only ever returns a link stub, so handing back a
+  // stub for a song Songsterr has no chords for occupies the "found a sheet"
+  // slot in the UI with a dead end instead of letting the user add their own.
   const match = results.find(r =>
-    validateSongsterrResult(r.title, r.artist, title, artist)
+    r.hasChords && validateSongsterrResult(r.title, r.artist, title, artist)
   );
   if (!match) {
     logger.info(

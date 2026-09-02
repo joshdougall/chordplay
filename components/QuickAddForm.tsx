@@ -62,18 +62,33 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
   // Reset transpose when track changes
   useEffect(() => { setTranspose(0); }, [track?.trackId]);
 
+  // Keyed on trackId, NOT on the track object. `track` is rebuilt on every
+  // now-playing poll, so depending on it re-ran this effect every 2s: it refetched
+  // external chords continuously and, worse, reset title/artist/content on each
+  // pass, wiping anything the user was typing.
+  //
+  // The abort is what stops a wrong song being shown. Without it, skipping tracks
+  // left an earlier request in flight, and whichever resolved last won, so a match
+  // for the previous song rendered under the current song's header. Observed live:
+  // Stella Lefty "Boston" (songsterr id 5334511) displayed while Tucker Wetmore
+  // "Sunburn" was playing.
+  const trackId = track?.trackId;
+  const trackTitle = track?.title;
+  const trackArtists = track?.artists.join(", ");
   useEffect(() => {
-    if (!track?.title) return;
-    setTitle(track.title);
-    setArtist(track.artists.join(", "));
+    if (!trackTitle) return;
+    const ac = new AbortController();
+    setTitle(trackTitle);
+    setArtist(trackArtists ?? "");
     setContent("");
     setSuggestedChords(null);
     setFetchingChords(true);
     setEditMode(false);  // Switch to preview mode while fetching; we'll stay in preview if fetch succeeds
-    const params = new URLSearchParams({ title: track.title, artist: track.artists.join(", ") });
-    fetch(`/api/external/chords?${params}`)
+    const params = new URLSearchParams({ title: trackTitle, artist: trackArtists ?? "" });
+    fetch(`/api/external/chords?${params}`, { signal: ac.signal })
       .then(r => r.ok ? r.json() : { match: null })
       .then((body: { match: ExternalChords | null }) => {
+        if (ac.signal.aborted) return;
         if (body.match) {
           setSuggestedChords(body.match);
           setContent(prev => prev.trim() === "" ? body.match!.content : prev);
@@ -83,9 +98,11 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
           setEditMode(true);
         }
       })
-      .catch(() => setEditMode(true))
-      .finally(() => setFetchingChords(false));
-  }, [track]);
+      .catch(err => { if (err?.name !== "AbortError") setEditMode(true); })
+      .finally(() => { if (!ac.signal.aborted) setFetchingChords(false); });
+    return () => ac.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackId]);
 
   async function runSearch(e: React.FormEvent) {
     e.preventDefault();
