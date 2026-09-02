@@ -648,6 +648,8 @@ export default function HomePage() {
         <AutoScroller
           enabled={prefs.autoScroll && !editing && np.data.isPlaying}
           progressMs={np.data.progressMs}
+          sampleAgeMs={(np.data as { sampleAgeMs?: number }).sampleAgeMs ?? 0}
+          isPlaying={np.data.isPlaying}
           durationMs={np.data.durationMs}
           speedMultiplier={prefs.autoScrollSpeed ?? 1}
           targetRef={scrollRef}

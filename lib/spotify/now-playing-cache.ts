@@ -6,6 +6,8 @@ export type NowPlaying = {
   progressMs: number;
   durationMs: number;
   isPlaying: boolean;
+  /** Set by the API route: how stale progressMs was when sent. */
+  sampleAgeMs?: number;
 } | null;
 
 type Entry = { value: NowPlaying; at: number };
@@ -16,8 +18,13 @@ export function makeNowPlayingCache(fetcher: () => Promise<NowPlaying>, ttlMs: n
 
   return {
     async get(): Promise<NowPlaying> {
-      if (entry && Date.now() - entry.at < ttlMs) return entry.value;
-      if (inflight) return inflight;
+      return (await this.getEntry()).value;
+    },
+    /** Like get(), but also reports when the sample was actually taken, so
+     *  callers can account for how stale a cached value is. */
+    async getEntry(): Promise<Entry> {
+      if (entry && Date.now() - entry.at < ttlMs) return entry;
+      if (inflight) { const v = await inflight; return entry ?? { value: v, at: Date.now() }; }
       inflight = (async () => {
         try {
           const v = await fetcher();
@@ -27,7 +34,8 @@ export function makeNowPlayingCache(fetcher: () => Promise<NowPlaying>, ttlMs: n
           inflight = null;
         }
       })();
-      return inflight;
+      const v = await inflight;
+      return entry ?? { value: v, at: Date.now() };
     },
     invalidate() { entry = null; }
   };

@@ -48,7 +48,7 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   try {
-    const np = await getCacheForUser(session.userId).get();
+    const { value: np, at: sampledAt } = await getCacheForUser(session.userId).getEntry();
     if (np?.trackId) {
       const last = lastSeenTrack.get(session.userId);
       if (last !== np.trackId) {
@@ -64,7 +64,11 @@ export async function GET() {
         } catch { /* non-fatal */ }
       }
     }
-    return NextResponse.json(np);
+    // A duration, not a timestamp: the client cannot safely compare our clock
+    // to its own, but it can add up two durations.
+    return NextResponse.json(
+      np ? { ...np, sampleAgeMs: Math.max(0, Date.now() - sampledAt) } : np
+    );
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 502 });
   }
