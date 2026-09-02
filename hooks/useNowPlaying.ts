@@ -34,11 +34,21 @@ export function useNowPlaying(intervalMs = 2000) {
         backoff = Math.min(backoff * 2, 30_000);
       }
     };
-    tick();
-    const handle = window.setInterval(tick, intervalMs);
+    // Self-rescheduling timeout, not setInterval. `backoff` was doubled on every
+    // failure and then never read, because the interval was fixed at intervalMs:
+    // on a dropped connection that meant 30 requests a minute, indefinitely, each
+    // one attempting a Spotify token refresh behind it. This is an RV on LTE.
+    let handle: number | undefined;
+    const loop = async () => {
+      await tick();
+      if (cancelled) return;
+      handle = window.setTimeout(loop, visibleRef.current ? backoff : intervalMs);
+    };
+    void loop();
+
     return () => {
       cancelled = true;
-      window.clearInterval(handle);
+      if (handle !== undefined) window.clearTimeout(handle);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [intervalMs]);
