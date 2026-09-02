@@ -12,6 +12,7 @@ export type Config = {
   forgejoIssueRepo: string;
   forgejoIssueToken: string | null;
   adminUserIds: string[];
+  allowedUserIds: string[];
 };
 
 function required(name: string): string {
@@ -39,10 +40,14 @@ export function loadConfig(): Config {
     forgejoIssueRepo: process.env.FORGEJO_ISSUE_REPO ?? "",
     forgejoIssueToken: process.env.FORGEJO_ISSUE_TOKEN ?? null,
     adminUserIds: (process.env.CHORDPLAY_ADMIN_USERS ?? "").split(",").map(s => s.trim()).filter(Boolean),
+    // Empty means no allowlist, so the open-source default stays open.
+    allowedUserIds: parseAllowedUsers(process.env.CHORDPLAY_ALLOWED_USERS),
   };
 }
 
 let cached: Config | null = null;
+import { parseAllowedUsers } from "@/lib/auth/allowlist";
+
 export function getConfig(): Config {
   if (!cached) cached = loadConfig();
   return cached;

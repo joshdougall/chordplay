@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+import { isUserAllowed } from "@/lib/auth/allowlist";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getConfig } from "@/lib/config";
@@ -60,6 +62,15 @@ export async function GET(req: NextRequest) {
   }
   const me = (await meRes.json()) as { id: string };
   const userId = me.id;
+
+  // Refuse BEFORE writing tokens or setting a session: an unlisted account must
+  // leave no trace on disk and get no cookie.
+  if (!isUserAllowed(userId, cfg.allowedUserIds)) {
+    logger.warn({ userId }, "login refused: not in CHORDPLAY_ALLOWED_USERS");
+    cookieStore.delete("cp_pkce");
+    cookieStore.delete("cp_state");
+    return NextResponse.json({ error: "This Chordplay instance is private." }, { status: 403 });
+  }
 
   await writeTokens(cfg.dataPath, cfg.appSecret, userId, {
     refreshToken: data.refresh_token,
