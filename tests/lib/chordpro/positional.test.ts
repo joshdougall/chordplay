@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { isPositionalSheet, renderPositional } from "@/lib/chordpro/positional";
+import { stripMetaPreamble } from "@/lib/chordpro/strip-meta";
 
 const SNOWSHOES = `{title: Snowshoes}
 {key: D}
@@ -32,6 +33,32 @@ describe("isPositionalSheet", () => {
 
   it("does not claim a sheet with no chords at all", () => {
     expect(isPositionalSheet("{title: X}\n\njust words here")).toBe(false);
+  });
+});
+
+describe("renderPositional + preamble stripping", () => {
+  it("positional sheets must go through the preamble stripper too", () => {
+    // Regression: renderPositional was fed the RAW source while only the inline
+    // renderer got the stripped text, so positional sheets still opened on
+    // scraper junk after the stripper was fixed. Caught live on Snowshoes.
+    const withJunk = `{title: Snowshoes}
+
+SNOWSHOES
+As recorded by Caamp
+(From the 2022 Album LAVENDER DAYS)
+
+[Intro]
+[Dmaj7]   [A]
+
+[Verse 1]
+           [Dmaj7]
+I hope you know if I go there`;
+    const { lines } = renderPositional(stripMetaPreamble(withJunk), 0);
+    const all = lines.map(l => l.segments.map(s => s.text).join("")).join("\n");
+    expect(all).not.toMatch(/As recorded by/);
+    expect(all).not.toMatch(/LAVENDER DAYS/);
+    expect(all).toMatch(/Intro/);
+    expect(all).toMatch(/I hope you know/);
   });
 });
 

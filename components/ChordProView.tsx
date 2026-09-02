@@ -54,9 +54,14 @@ export function ChordProView({
   // and lost the timing the sheet exists to convey. Render them as a <pre>
   // instead, which preserves the columns exactly, with the chord tokens still
   // wrapped so styling and click-to-diagram keep working.
+  // Strip the scraper preamble BEFORE deciding how to render. Feeding the raw
+  // source here meant positional sheets still opened on someone's credits
+  // while inline sheets did not.
+  const stripped = useMemo(() => stripMetaPreamble(source), [source]);
+
   const positional = useMemo(
-    () => (isPositionalSheet(source) ? renderPositional(source, transpose) : null),
-    [source, transpose]
+    () => (isPositionalSheet(stripped) ? renderPositional(stripped, transpose) : null),
+    [stripped, transpose]
   );
 
   const { html, uniqueChords: parsedChords, keyLabel, capo, sheetCapo } = useMemo(() => {
