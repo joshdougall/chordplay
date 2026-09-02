@@ -17,11 +17,36 @@ export function clearAccessTokenCache(userId?: string) {
 
 const REFRESH_MARGIN_MS = 30_000;
 
+/**
+ * In-flight refreshes, keyed by user.
+ *
+ * There is an await between the cache check and the cache write, and nothing
+ * coalesced callers, so every expiry produced a burst: /api/now-playing polls
+ * every 2s, /api/auth/status and any playback action land alongside it, and each
+ * one independently POSTed to Spotify and wrote tokens.json. With refresh-token
+ * rotation only one write survived last-writer-wins, and if the survivor was not
+ * the token Spotify considered current the user was logged out for good.
+ *
+ * Same shape as lib/spotify/now-playing-cache.ts, which already does this.
+ */
+const inflight = new Map<string, Promise<string>>();
+
 export async function getAccessToken(cfg: Config, userId: string): Promise<string> {
   const cached = caches.get(userId);
   if (cached && cached.expiresAt - Date.now() > REFRESH_MARGIN_MS) {
     return cached.accessToken;
   }
+
+  const existing = inflight.get(userId);
+  if (existing) return existing;
+
+  // Cleared in a finally so a failure is not cached: the next caller retries.
+  const p = refreshAccessToken(cfg, userId).finally(() => inflight.delete(userId));
+  inflight.set(userId, p);
+  return p;
+}
+
+async function refreshAccessToken(cfg: Config, userId: string): Promise<string> {
   const tokens = await readTokens(cfg.dataPath, cfg.appSecret, userId);
   if (!tokens) throw new Error("not authenticated");
 
