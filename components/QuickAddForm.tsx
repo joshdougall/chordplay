@@ -133,6 +133,22 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, artist, format, content, spotifyTrackId: track?.trackId })
       });
+      if (res.status === 409) {
+        const { message } = await res.json().catch(() => ({ message: "" }));
+        const ok = window.confirm(
+          `${message || "You already have a sheet for this song."}\n\n` +
+          `Replace it? Your existing version will be lost.`
+        );
+        if (!ok) { setSaving(false); return; }
+        const retry = await fetch("/api/library", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, artist, format, content, spotifyTrackId: track?.trackId, overwrite: true })
+        });
+        if (!retry.ok) throw new Error(await retry.text());
+        onCreated((await retry.json()).id);
+        return;
+      }
       if (!res.ok) throw new Error(await res.text());
       const { id } = await res.json();
       onCreated(id);
@@ -213,14 +229,16 @@ export function QuickAddForm({ track: initialTrack, onCreated }: Props) {
         </div>
       )}
 
-      {/* Prominent save bar with status — always visible at the top when we have a track */}
-      {track && (
+      {/* Save bar. Deliberately NOT gated on `track`: the page invites manual
+          entry, and gating this on a Spotify search result meant the manual
+          path had no way to save at all and silently discarded typed work. */}
+      {(track || title.trim() !== "") && (
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 py-2 px-3 rounded"
              style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}>
           <div className="flex-1 min-w-0 text-sm">
-            <div className="font-medium truncate" style={{ color: "var(--ink)" }}>{title || track.title}</div>
+            <div className="font-medium truncate" style={{ color: "var(--ink)" }}>{title || track?.title}</div>
             <div className="text-xs truncate" style={{ color: "var(--ink-muted)" }}>
-              {artist || track.artists.join(", ")}
+              {artist || track?.artists.join(", ")}
               {fetchingChords && " · Fetching chords…"}
               {!fetchingChords && !suggestedChords && " · No chords found online — type or paste below"}
             </div>

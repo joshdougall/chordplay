@@ -1,4 +1,4 @@
-import { mkdir, readFile, unlink } from "node:fs/promises";
+import { access, mkdir, readFile, unlink } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { Format } from "./format";
 import { detectKey } from "@/lib/music/key-detection";
@@ -23,6 +23,16 @@ export async function deleteEntry(root: string, id: string): Promise<void> {
   await unlink(target);
 }
 
+/** Thrown when a create would silently replace an existing sheet. */
+export class EntryExistsError extends Error {
+  readonly id: string;
+  constructor(id: string) {
+    super(`A sheet already exists at ${id}`);
+    this.name = "EntryExistsError";
+    this.id = id;
+  }
+}
+
 export type CreateInput = {
   title: string;
   artist: string;
@@ -30,6 +40,10 @@ export type CreateInput = {
   content: string;
   spotifyTrackId?: string;
   folder?: string;
+  /** Replace an existing sheet at the same id. Off by default: the filename is
+   *  derived from artist+title, so re-saving a song you already own would
+   *  otherwise destroy your edited version with no warning and no undo. */
+  overwrite?: boolean;
 };
 
 export async function setVersionName(root: string, id: string, versionName: string): Promise<void> {
@@ -84,6 +98,12 @@ export async function createEntry(root: string, input: CreateInput): Promise<str
   const safe = (s: string) => s.replace(/[^\p{L}\p{N}\s.-]/gu, "").trim().replace(/\s+/g, "_");
   const filename = `${safe(input.artist)}-${safe(input.title)}.${ext}`;
   const id = join(folder, filename);
+
+  if (!input.overwrite) {
+    const target = safePath(root, id);
+    const exists = await access(target).then(() => true, () => false);
+    if (exists) throw new EntryExistsError(id);
+  }
   let body = "";
   if (input.format === "chordpro" || input.format === "ascii-tab") {
     body += `{title: ${input.title}}\n`;
