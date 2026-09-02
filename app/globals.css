@@ -84,3 +84,27 @@ body {
   50% { opacity: 0.8; }
 }
 .skeleton { animation: skeleton-pulse 1.4s ease-in-out infinite; }
+
+
+/* Positional sheets: chords are placed by column in the source, so the whole
+   sheet is preformatted. Columns are the timing information here, which is why
+   this must not wrap; it scrolls in its own container instead. */
+.chordpro-pre {
+  font-size: calc(1rem * var(--sheet-scale, 1));
+  line-height: 1.55;
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--ink);
+  tab-size: 4;
+}
+.chordpro-pre .chord {
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* User-adjustable sheet size. Inline sheets scale too. */
+.chordpro {
+  font-size: calc(1rem * var(--sheet-scale, 1));
+}

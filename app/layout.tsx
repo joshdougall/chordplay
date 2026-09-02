@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${lora.variable} ${jetbrains.variable} flex flex-col h-screen`} style={{ backgroundColor: "var(--bg)", color: "var(--ink)" }}>
+      <body className={`${lora.variable} ${jetbrains.variable} flex flex-col h-[100dvh] overflow-x-hidden`} style={{ backgroundColor: "var(--bg)", color: "var(--ink)" }}>
         <ClientErrorReporter />
         <UpdateBanner />
         <Header />

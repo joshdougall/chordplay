@@ -7,6 +7,8 @@ export type Prefs = {
   songTranspose: Record<string, number>;
   preferredVersion: Record<string, string>;
   splitView?: Record<string, boolean>;
+  /** Sheet text scale multiplier. 1 = the original hard-coded 16px. */
+  fontScale?: number;
 };
 
 /**
@@ -22,5 +24,6 @@ export const DEFAULT_PREFS: Prefs = {
   trackOverrides: {},
   songTranspose: {},
   preferredVersion: {},
-  splitView: {}
+  splitView: {},
+  fontScale: 1
 };

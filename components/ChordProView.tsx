@@ -6,6 +6,7 @@ import type { Song } from "chordsheetjs";
 import { ChordDiagram } from "@/components/ChordDiagram";
 import { detectKey, capoSuggestion, normalizeChordRoot } from "@/lib/music/key-detection";
 import { parseCapoDirective } from "@/lib/chordpro/capo";
+import { isPositionalSheet, renderPositional } from "@/lib/chordpro/positional";
 import { stripMetaPreamble } from "@/lib/chordpro/strip-meta";
 import { isChordName, extractUniqueChords } from "@/lib/chordpro/extract-chords";
 import { sanitizeChordHtml } from "@/lib/chordpro/sanitize";
@@ -48,7 +49,17 @@ export function ChordProView({
 }) {
   const containsTab = useMemo(() => hasAsciiTabLines(source), [source]);
 
-  const { html, uniqueChords, keyLabel, capo, sheetCapo } = useMemo(() => {
+  // 44 of 47 library sheets place their chords by column. HtmlDivFormatter
+  // discards that whitespace, so those sheets rendered every chord flush left
+  // and lost the timing the sheet exists to convey. Render them as a <pre>
+  // instead, which preserves the columns exactly, with the chord tokens still
+  // wrapped so styling and click-to-diagram keep working.
+  const positional = useMemo(
+    () => (isPositionalSheet(source) ? renderPositional(source, transpose) : null),
+    [source, transpose]
+  );
+
+  const { html, uniqueChords: parsedChords, keyLabel, capo, sheetCapo } = useMemo(() => {
     try {
       const stripped = stripMetaPreamble(source);
       const song = new ChordProParser().parse(stripped);
@@ -82,8 +93,12 @@ export function ChordProView({
     }
   }, [source, transpose, showChordDiagrams]);
 
+  // Same chord list either way, but taken from whichever renderer is showing.
+  const uniqueChords = positional && showChordDiagrams ? positional.uniqueChords : parsedChords;
+
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const sheetRef = useRef<HTMLDivElement | null>(null);
+  // Widened to HTMLElement: positional sheets render into a <pre>, inline into a <div>.
+  const sheetRef = useRef<HTMLElement | null>(null);
 
   // Click a chord in the sheet → scroll its palette diagram into view and pulse it.
   // Queries [data-chord] from the root so both mobile and desktop palettes work.
@@ -160,11 +175,30 @@ export function ChordProView({
               ))}
             </div>
           )}
-          <div
-            ref={sheetRef}
-            className="chordpro prose prose-invert max-w-none font-mono"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          {positional ? (
+            <pre ref={el => { sheetRef.current = el; }} className="chordpro-pre font-mono">
+              {positional.lines.map((line, i) => (
+                <span key={i}>
+                  {line.segments.map((seg, j) =>
+                    seg.isChord ? (
+                      <span key={j} className="chord" role="presentation" data-chord={seg.text}>
+                        {seg.text}
+                      </span>
+                    ) : (
+                      seg.text
+                    )
+                  )}
+                  {"\n"}
+                </span>
+              ))}
+            </pre>
+          ) : (
+            <div
+              ref={el => { sheetRef.current = el; }}
+              className="chordpro prose prose-invert max-w-none font-mono"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          )}
         </div>
         {showChordDiagrams && !containsTab && uniqueChords.length > 0 && (
           /* Desktop: right rail, vertical stack, sticky. Hidden for ASCII-tab content since
