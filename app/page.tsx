@@ -16,6 +16,7 @@ import { ShortcutsHelp } from "@/components/ShortcutsHelp";
 import type { LibraryEntry } from "@/lib/library/index";
 import { DEFAULT_PREFS, type Prefs } from "@/lib/prefs/defaults";
 import { clientLog } from "@/lib/client-logger";
+import { clampFontScale, FONT_SCALE_STEP } from "@/lib/prefs/font-scale";
 
 type MatchResponse = {
   match: LibraryEntry | null;
@@ -244,6 +245,20 @@ export default function HomePage() {
     await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(nextPrefs) });
   }
 
+  // Applied on the root so every sheet view inherits it, including
+  // /library/[id], rather than only the Now Playing sheet.
+  useEffect(() => {
+    const scale = clampFontScale(prefs?.fontScale ?? 1);
+    document.documentElement.style.setProperty("--sheet-scale", String(scale));
+  }, [prefs?.fontScale]);
+
+  async function setFontScale(next: number) {
+    if (!prefs) return;
+    const scaled = { ...prefs, fontScale: clampFontScale(next) };
+    setPrefs(scaled);
+    await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(scaled) });
+  }
+
   async function setTranspose(n: number) {
     if (!prefs || !currentId) return;
     const next = { ...prefs, songTranspose: { ...prefs.songTranspose, [currentId]: n } };
@@ -448,6 +463,24 @@ export default function HomePage() {
                 </button>
               );
             })}
+          </div>
+        )}
+        {/* Sheet text size. Sized like the transpose buttons, which are the only
+            other controls a player touches while holding the instrument. */}
+        {prefs && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setFontScale((prefs.fontScale ?? 1) - FONT_SCALE_STEP)}
+              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              style={btnStyle}
+              aria-label="Smaller sheet text"
+            >A−</button>
+            <button
+              onClick={() => setFontScale((prefs.fontScale ?? 1) + FONT_SCALE_STEP)}
+              className="h-10 min-w-10 md:h-7 md:min-w-7 px-2 rounded flex items-center justify-center"
+              style={btnStyle}
+              aria-label="Larger sheet text"
+            >A+</button>
           </div>
         )}
         {/* Primary: transpose (always inline when visible) */}

@@ -143,11 +143,14 @@ export function Header() {
               />
             )}
             {(auth?.displayName || auth?.userId) && (
-              <span style={{ color: "var(--ink-faint)" }}>{auth.displayName || auth.userId}</span>
+              // Hidden below md: this block is what pushed the header to 682px in a
+              // 390px viewport, and once the page scrolled sideways the lyric
+              // column was dragged off the left edge with no obvious way back.
+              <span className="hidden md:inline" style={{ color: "var(--ink-faint)" }}>{auth.displayName || auth.userId}</span>
             )}
           </div>
         )}
-        {authed && <ReportIssueButton />}
+        {authed && <span className="hidden md:inline"><ReportIssueButton /></span>}
         {authed && (
           <form action="/api/auth/logout" method="post">
             <button
