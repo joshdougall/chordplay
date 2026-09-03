@@ -11,6 +11,8 @@ import { QuickAddForm } from "@/components/QuickAddForm";
 import { Editor } from "@/components/Editor";
 import { LibraryPicker } from "@/components/LibraryPicker";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { usePlaybackClock } from "@/hooks/usePlaybackClock";
+import { useSheetMap } from "@/hooks/useSheetMap";
 import { OverflowMenu } from "@/components/OverflowMenu";
 import { ShortcutsHelp } from "@/components/ShortcutsHelp";
 import type { LibraryEntry } from "@/lib/library/index";
@@ -438,6 +440,37 @@ export default function HomePage() {
   // Off while a modal or the editor owns the keyboard.
   !showShortcuts && !showLibraryPicker && !editing);
 
+  const clock = usePlaybackClock({
+    trackId: np.data?.trackId ?? null,
+    progressMs: np.data?.progressMs ?? 0,
+    // No cast needed: NowPlaying already declares `sampleAgeMs?: number`
+    // (lib/spotify/now-playing-cache.ts).
+    sampleAgeMs: np.data?.sampleAgeMs ?? 0,
+    isPlaying: np.data?.isPlaying ?? false,
+    durationMs: np.data?.durationMs ?? 0,
+    speedMultiplier: prefs?.autoScrollSpeed ?? 1,
+  });
+
+  const { map: sheetMap, cues: chordCues } = useSheetMap({
+    // Any consumer being active is reason enough to keep the map current.
+    enabled: ((prefs?.autoScroll ?? false) || (prefs?.chordStrip ?? false)) && !editing,
+    containerRef: scrollRef,
+    // `splitView` and the content-loaded flag are part of the key because both
+    // change which element is the sheet. Without them, toggling split view swaps
+    // the sheet element with no rebuild.
+    rebuildKey: [
+      effectiveMatch?.id ?? "",
+      transposeOffset,
+      selectedVersionId ?? "",
+      splitView ? "split" : "single",
+      content !== null ? "loaded" : "empty",
+    ].join(":"),
+  });
+  // Unread until Task 11 mounts the chord strip.
+  void chordCues;
+
+  // Hooks must not be called conditionally, so both hooks above are called
+  // before these early returns rather than after.
   if (connected === false) return <ConnectSpotify />;
   if (connected === null) return <div className="p-8" style={{ color: "var(--ink-muted)" }}>Loading…</div>;
 
@@ -703,12 +736,10 @@ export default function HomePage() {
       {np.data && prefs && (
         <AutoScroller
           enabled={prefs.autoScroll && !editing && np.data.isPlaying}
-          progressMs={np.data.progressMs}
-          sampleAgeMs={(np.data as { sampleAgeMs?: number }).sampleAgeMs ?? 0}
-          isPlaying={np.data.isPlaying}
+          clock={clock}
           durationMs={np.data.durationMs}
-          speedMultiplier={prefs.autoScrollSpeed ?? 1}
           targetRef={scrollRef}
+          map={sheetMap}
         />
       )}
       {showShortcuts && <ShortcutsHelp onClose={() => setShowShortcuts(false)} />}
