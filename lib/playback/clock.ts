@@ -83,3 +83,40 @@ export function isPlaybackSeek(
   const expectedReal = anchorProgressMs + elapsedSinceAnchorMs;
   return Math.abs(realProgressMs - expectedReal) > toleranceMs;
 }
+
+export type SampleReason = "track-change" | "seek" | "drift" | "none";
+
+/**
+ * Decide the next anchor for an incoming progress sample, track identity
+ * included.
+ *
+ * nextAnchor alone cannot see a track change: it compares progress values, so
+ * skipping to a different song that happens to be at a similar position looks
+ * like continuous playback and the old anchor survives, seconds out. The RAF
+ * effect used to be torn down whenever durationMs changed, which masked this;
+ * with the clock in a hook that no longer happens, and two tracks of the same
+ * length would never re-anchor at all.
+ */
+export function nextAnchorForSample({
+  anchor,
+  trackId,
+  prevTrackId,
+  realProgressMs,
+  now,
+  durationMs,
+  toleranceMs = SEEK_TOLERANCE_MS,
+}: {
+  anchor: Anchor;
+  trackId: string | null;
+  prevTrackId: string | null;
+  realProgressMs: number;
+  now: number;
+  durationMs: number;
+  toleranceMs?: number;
+}): Anchor & { reason: SampleReason } {
+  if (trackId === null) return { ...anchor, reason: "none" };
+  if (trackId !== prevTrackId) {
+    return { progressMs: realProgressMs, at: now, reason: "track-change" };
+  }
+  return nextAnchor(anchor, realProgressMs, now, durationMs, toleranceMs);
+}

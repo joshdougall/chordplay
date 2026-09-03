@@ -4,6 +4,7 @@ import {
   virtualProgressAt,
   nextAnchor,
   isPlaybackSeek,
+  nextAnchorForSample,
   SEEK_TOLERANCE_MS,
   MAX_DRIFT_STEP_MS,
 } from "@/lib/playback/clock";
@@ -115,5 +116,88 @@ describe("isPlaybackSeek", () => {
 
   it("returns true for a track change (progress resets near zero)", () => {
     expect(isPlaybackSeek(500, 200_000, 2_000)).toBe(true);
+  });
+});
+
+describe("nextAnchorForSample", () => {
+  const anchor = { progressMs: 60_000, at: 1_000 };
+
+  it("resets unconditionally on a track change, even when progress looks continuous", () => {
+    // The killer case: skip to a track whose progress happens to match where
+    // the old anchor expected to be. Divergence is 0, so isPlaybackSeek says
+    // no, but this is a different song.
+    const got = nextAnchorForSample({
+      anchor,
+      trackId: "track-b",
+      prevTrackId: "track-a",
+      realProgressMs: 62_000,
+      now: 3_000,
+      durationMs: 90_000,
+    });
+    expect(got.reason).toBe("track-change");
+    expect(got.progressMs).toBe(62_000);
+    expect(got.at).toBe(3_000);
+  });
+
+  it("resets on an early skip, which the tolerance alone would miss", () => {
+    // Anchored 2s into track A, skip to track B also 2s in.
+    const got = nextAnchorForSample({
+      anchor: { progressMs: 2_000, at: 0 },
+      trackId: "track-b",
+      prevTrackId: "track-a",
+      realProgressMs: 2_000,
+      now: 0,
+      durationMs: 180_000,
+    });
+    expect(got.reason).toBe("track-change");
+    expect(got.progressMs).toBe(2_000);
+  });
+
+  it("does not reset when the track is unchanged", () => {
+    const got = nextAnchorForSample({
+      anchor,
+      trackId: "track-a",
+      prevTrackId: "track-a",
+      realProgressMs: 62_000,
+      now: 3_000,
+      durationMs: 90_000,
+    });
+    expect(got.reason).toBe("none");
+  });
+
+  it("treats first load (no previous track) as a track change", () => {
+    const got = nextAnchorForSample({
+      anchor,
+      trackId: "track-a",
+      prevTrackId: null,
+      realProgressMs: 5_000,
+      now: 500,
+      durationMs: 90_000,
+    });
+    expect(got.reason).toBe("track-change");
+    expect(got.progressMs).toBe(5_000);
+  });
+
+  it("still delegates seek and drift to nextAnchor when the track is unchanged", () => {
+    const seek = nextAnchorForSample({
+      anchor, trackId: "a", prevTrackId: "a",
+      realProgressMs: 82_000, now: 3_000, durationMs: 90_000,
+    });
+    expect(seek.reason).toBe("seek");
+
+    const drift = nextAnchorForSample({
+      anchor, trackId: "a", prevTrackId: "a",
+      realProgressMs: 62_800, now: 3_000, durationMs: 90_000,
+    });
+    expect(drift.reason).toBe("drift");
+  });
+
+  it("stays put when there is no track at all", () => {
+    const got = nextAnchorForSample({
+      anchor, trackId: null, prevTrackId: null,
+      realProgressMs: 0, now: 3_000, durationMs: 0,
+    });
+    expect(got.reason).toBe("none");
+    expect(got.progressMs).toBe(60_000);
   });
 });
