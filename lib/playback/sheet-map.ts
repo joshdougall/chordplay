@@ -100,3 +100,98 @@ export function buildSheetMap(lines: LineFacts[]): SheetMap | null {
   if (unitTops.length === 0) return null;
   return { unitTops, unitLineIndex, unitFirstLine, cumWeight, totalWeight: total };
 }
+
+/** The unit boundary the forward mapping uses beyond the last unit. Both
+ *  mappings must use this same expression or the round trip breaks. */
+function unitEndTop(map: SheetMap, unitIdx: number, maxScroll: number): number {
+  const thisTop = map.unitTops[unitIdx];
+  return unitIdx + 1 < map.unitTops.length
+    ? map.unitTops[unitIdx + 1]
+    : Math.max(thisTop + 1, maxScroll);
+}
+
+/** Binary search for the first unit whose cumulative weight reaches `target`. */
+function unitAtWeight(map: SheetMap, target: number): number {
+  let lo = 0;
+  let hi = map.cumWeight.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (map.cumWeight[mid] < target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** Which unit is sounding at `pct` through the song. */
+export function unitIndexAtFraction(pct: number, map: SheetMap): number {
+  const clamped = Math.max(0, Math.min(1, pct));
+  if (map.totalWeight === 0) return 0;
+  return unitAtWeight(map, clamped * map.totalWeight);
+}
+
+/** Song fraction -> scrollTop. Clamped to [0, maxScroll]. */
+export function weightedProgressToScrollTop(
+  pct: number,
+  map: SheetMap,
+  maxScroll: number
+): number {
+  if (map.totalWeight === 0 || map.unitTops.length === 0) return pct * maxScroll;
+  const target = Math.max(0, Math.min(1, pct)) * map.totalWeight;
+  const idx = unitAtWeight(map, target);
+
+  const cumEnd = map.cumWeight[idx];
+  const cumStart = idx > 0 ? map.cumWeight[idx - 1] : 0;
+  const weight = cumEnd - cumStart;
+  const intra = weight > 0 ? (target - cumStart) / weight : 0;
+
+  const thisTop = map.unitTops[idx];
+  const nextTop = unitEndTop(map, idx, maxScroll);
+  return Math.max(0, Math.min(maxScroll, thisTop + (nextTop - thisTop) * intra));
+}
+
+/**
+ * scrollTop -> song fraction. The inverse of weightedProgressToScrollTop.
+ *
+ * The forward mapping is not injective: every fraction whose interpolated
+ * position lands at or beyond maxScroll clamps to maxScroll, and a sheet
+ * shorter than its viewport clamps everything. So this is a LEFT inverse on the
+ * unclamped interior, returning the smallest fraction that maps to a given
+ * offset. Round-tripping is guaranteed only where the forward result lies
+ * strictly inside (0, maxScroll); the clamped ends are defined here as 0 and 1.
+ */
+export function progressFractionAtOffset(
+  offsetTop: number,
+  map: SheetMap | null,
+  maxScroll: number
+): number {
+  // Same linear fallback the forward mapping uses, inverted.
+  if (map === null || map.totalWeight === 0 || map.unitTops.length === 0) {
+    return Math.max(0, Math.min(1, offsetTop / Math.max(1, maxScroll)));
+  }
+
+  if (offsetTop <= map.unitTops[0]) return 0;
+
+  const last = map.unitTops.length - 1;
+  if (offsetTop >= unitEndTop(map, last, maxScroll)) return 1;
+
+  // First unit whose top exceeds offsetTop, minus one, is the containing unit.
+  let lo = 0;
+  let hi = last;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (map.unitTops[mid] <= offsetTop) lo = mid;
+    else hi = mid - 1;
+  }
+  const idx = lo;
+
+  const thisTop = map.unitTops[idx];
+  const nextTop = unitEndTop(map, idx, maxScroll);
+  const span = nextTop - thisTop;
+  const intra = span > 0 ? (offsetTop - thisTop) / span : 0;
+
+  const cumEnd = map.cumWeight[idx];
+  const cumStart = idx > 0 ? map.cumWeight[idx - 1] : 0;
+  const target = cumStart + (cumEnd - cumStart) * intra;
+
+  return Math.max(0, Math.min(1, target / map.totalWeight));
+}

@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { buildSheetMap, SPARSE_UNIT_WEIGHT, type LineFacts } from "@/lib/playback/sheet-map";
+import {
+  buildSheetMap,
+  SPARSE_UNIT_WEIGHT,
+  type LineFacts,
+  weightedProgressToScrollTop,
+  progressFractionAtOffset,
+  unitIndexAtFraction,
+} from "@/lib/playback/sheet-map";
 
 /** A line with chords and no words: a positional sheet's chord row. */
 function chordLine(top: number, names: string[], lefts?: number[]): LineFacts {
@@ -128,5 +135,100 @@ describe("buildSheetMap", () => {
     for (let i = 1; i < map.unitTops.length; i++) {
       expect(map.unitTops[i]).toBeGreaterThan(map.unitTops[i - 1]);
     }
+  });
+});
+
+describe("weightedProgressToScrollTop", () => {
+  const map = buildSheetMap([
+    inlineRow(0, ["C"]), inlineRow(100, ["G"]),
+    inlineRow(200, ["Am"]), inlineRow(300, ["F"]),
+  ])!;
+
+  it("starts at the top", () => {
+    expect(weightedProgressToScrollTop(0, map, 400)).toBe(0);
+  });
+
+  it("puts the middle of the song at the middle of the sheet", () => {
+    expect(weightedProgressToScrollTop(0.5, map, 400)).toBe(200);
+  });
+
+  it("clamps beyond the end", () => {
+    expect(weightedProgressToScrollTop(1.5, map, 400)).toBe(400);
+  });
+
+  it("spends less scroll on a sparse unit than a sung one", () => {
+    const sparse = buildSheetMap([
+      chordLine(0, ["C"]),                    // 0.25
+      inlineRow(100, ["G"]),                  // 1.0
+    ])!;
+    // The sparse unit owns 0.25/1.25 = 20% of the clock but 100px of sheet, so
+    // by 20% of the song we should already be at its end.
+    expect(weightedProgressToScrollTop(0.2, sparse, 200)).toBeCloseTo(100, 0);
+  });
+});
+
+describe("progressFractionAtOffset", () => {
+  const map = buildSheetMap([
+    inlineRow(0, ["C"]), inlineRow(100, ["G"]),
+    inlineRow(200, ["Am"]), inlineRow(300, ["F"]),
+  ])!;
+
+  it("round-trips the forward mapping on the unclamped interior", () => {
+    // The property that makes the strip and the scroll agree by construction.
+    for (const f of [0.05, 0.2, 0.37, 0.5, 0.62, 0.8, 0.95]) {
+      const top = weightedProgressToScrollTop(f, map, 400);
+      expect(top).toBeGreaterThan(0);
+      expect(top).toBeLessThan(400);
+      expect(progressFractionAtOffset(top, map, 400)).toBeCloseTo(f, 5);
+    }
+  });
+
+  it("returns 0 at the top of the sheet", () => {
+    expect(progressFractionAtOffset(0, map, 400)).toBe(0);
+  });
+
+  it("clamps a negative offset to 0", () => {
+    expect(progressFractionAtOffset(-50, map, 400)).toBe(0);
+  });
+
+  it("clamps an offset past the end to 1", () => {
+    expect(progressFractionAtOffset(9_999, map, 400)).toBe(1);
+  });
+
+  it("falls back to linear when there is no map, matching the forward fallback", () => {
+    expect(progressFractionAtOffset(100, null, 400)).toBeCloseTo(0.25, 5);
+    // And is the exact inverse of pct * maxScroll.
+    expect(progressFractionAtOffset(0.25 * 400, null, 400)).toBeCloseTo(0.25, 5);
+  });
+
+  it("does not divide by zero when the sheet fits the viewport", () => {
+    expect(progressFractionAtOffset(0, null, 0)).toBe(0);
+  });
+});
+
+describe("unitIndexAtFraction", () => {
+  const map = buildSheetMap([
+    inlineRow(0, ["C"]), inlineRow(100, ["G"]),
+    inlineRow(200, ["Am"]), inlineRow(300, ["F"]),
+  ])!;
+
+  it("resolves the first unit at the start", () => {
+    expect(unitIndexAtFraction(0, map)).toBe(0);
+  });
+
+  it("resolves the last unit at the end", () => {
+    expect(unitIndexAtFraction(1, map)).toBe(3);
+  });
+
+  it("advances one unit per quarter of an evenly weighted song", () => {
+    expect(unitIndexAtFraction(0.1, map)).toBe(0);
+    expect(unitIndexAtFraction(0.3, map)).toBe(1);
+    expect(unitIndexAtFraction(0.6, map)).toBe(2);
+    expect(unitIndexAtFraction(0.9, map)).toBe(3);
+  });
+
+  it("clamps out-of-range fractions instead of returning -1", () => {
+    expect(unitIndexAtFraction(-1, map)).toBe(0);
+    expect(unitIndexAtFraction(99, map)).toBe(3);
   });
 });
