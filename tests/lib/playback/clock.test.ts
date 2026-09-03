@@ -5,6 +5,8 @@ import {
   nextAnchor,
   isPlaybackSeek,
   nextAnchorForSample,
+  reanchorForSpeedChange,
+  nextClockState,
   SEEK_TOLERANCE_MS,
   MAX_DRIFT_STEP_MS,
 } from "@/lib/playback/clock";
@@ -199,5 +201,135 @@ describe("nextAnchorForSample", () => {
     });
     expect(got.reason).toBe("none");
     expect(got.progressMs).toBe(60_000);
+  });
+});
+
+describe("reanchorForSpeedChange", () => {
+  it("re-anchors to the current virtual position so the speed change is not a jump", () => {
+    // Anchored at 10s, 2s of wall time at 2x means the sheet believes it is at 14s.
+    const got = reanchorForSpeedChange({ progressMs: 10_000, at: 1_000 }, 2, 3_000);
+    expect(got.progressMs).toBe(14_000);
+    expect(got.at).toBe(3_000);
+  });
+
+  it("is a no-op in effect when no time has elapsed", () => {
+    const got = reanchorForSpeedChange({ progressMs: 10_000, at: 3_000 }, 1.5, 3_000);
+    expect(got.progressMs).toBe(10_000);
+    expect(got.at).toBe(3_000);
+  });
+
+  it("carries the position forward at the OLD speed, not the new one", () => {
+    // This is the whole point: the position reached so far was reached at 0.5x.
+    const got = reanchorForSpeedChange({ progressMs: 0, at: 0 }, 0.5, 10_000);
+    expect(got.progressMs).toBe(5_000);
+  });
+});
+
+describe("nextClockState", () => {
+  const at0 = { progressMs: 0, at: 0 };
+  const playing = {
+    trackId: "a", prevTrackId: "a", now: 0, durationMs: 200_000,
+    isPlaying: true, wasPlaying: true,
+  };
+
+  it("snapshots the live position on pause instead of falling back to the anchor base", () => {
+    // The defect this reducer exists to prevent: drift leaves `at` alone, so
+    // after 60s of playback the stored progressMs is still ~0 while the true
+    // position is 60s. Pausing must pin BOTH anchors to the real position.
+    const state = { anchor: { progressMs: 0, at: 0 }, scrollAnchor: { progressMs: 0, at: 0 } };
+    const got = nextClockState(state, {
+      ...playing, realProgressMs: 60_000, now: 60_000,
+      isPlaying: false, wasPlaying: true,
+    });
+    expect(got.reason).toBe("pause");
+    expect(got.anchor).toEqual({ progressMs: 60_000, at: 60_000 });
+    expect(got.scrollAnchor).toEqual({ progressMs: 60_000, at: 60_000 });
+  });
+
+  it("keeps paused samples pinned and never reports a seek while paused", () => {
+    // Without this, each paused poll grows the divergence until it trips
+    // SEEK_TOLERANCE_MS, so the marker jumped back and forth every other poll.
+    let state = { anchor: { progressMs: 60_000, at: 60_000 }, scrollAnchor: { progressMs: 60_000, at: 60_000 } };
+    for (let i = 1; i <= 5; i++) {
+      const now = 60_000 + i * 2_000;
+      const got = nextClockState(state, {
+        ...playing, realProgressMs: 60_000, now,
+        isPlaying: false, wasPlaying: false,
+      });
+      expect(got.reason).not.toBe("seek");
+      expect(got.anchor.progressMs).toBe(60_000);
+      state = { anchor: got.anchor, scrollAnchor: got.scrollAnchor };
+    }
+  });
+
+  it("hard re-anchors both anchors on resume", () => {
+    const state = { anchor: { progressMs: 60_000, at: 60_000 }, scrollAnchor: { progressMs: 60_000, at: 60_000 } };
+    const got = nextClockState(state, {
+      ...playing, realProgressMs: 60_000, now: 90_000,
+      isPlaying: true, wasPlaying: false,
+    });
+    expect(got.reason).toBe("resume");
+    expect(got.anchor).toEqual({ progressMs: 60_000, at: 90_000 });
+    expect(got.scrollAnchor).toEqual({ progressMs: 60_000, at: 90_000 });
+  });
+
+  it("applies the drift correction to the scroll anchor too", () => {
+    // Otherwise the scroll keeps a stale latency error forever, because the
+    // scroll anchor is only ever re-anchored on a discontinuity.
+    const state = {
+      anchor: { progressMs: 60_000, at: 1_000 },
+      scrollAnchor: { progressMs: 60_000, at: 1_000 },
+    };
+    const got = nextClockState(state, { ...playing, realProgressMs: 62_800, now: 3_000 });
+    expect(got.reason).toBe("drift");
+    const delta = got.anchor.progressMs - 60_000;
+    expect(delta).toBeGreaterThan(0);
+    expect(got.scrollAnchor.progressMs).toBe(60_000 + delta);
+    // The scroll anchor keeps its own timestamp: the correction is a fixed
+    // latency offset and must not fight the user's speed choice.
+    expect(got.scrollAnchor.at).toBe(1_000);
+  });
+
+  it("resets both anchors on a track change, ahead of any pause handling", () => {
+    const state = { anchor: at0, scrollAnchor: at0 };
+    const got = nextClockState(state, {
+      trackId: "b", prevTrackId: "a", realProgressMs: 5_000, now: 9_000,
+      durationMs: 200_000, isPlaying: false, wasPlaying: true,
+    });
+    expect(got.reason).toBe("track-change");
+    expect(got.anchor).toEqual({ progressMs: 5_000, at: 9_000 });
+    expect(got.scrollAnchor).toEqual({ progressMs: 5_000, at: 9_000 });
+  });
+
+  it("resets both anchors on a seek", () => {
+    const state = {
+      anchor: { progressMs: 60_000, at: 1_000 },
+      scrollAnchor: { progressMs: 60_000, at: 1_000 },
+    };
+    const got = nextClockState(state, { ...playing, realProgressMs: 82_000, now: 3_000 });
+    expect(got.reason).toBe("seek");
+    expect(got.anchor).toEqual({ progressMs: 82_000, at: 3_000 });
+    expect(got.scrollAnchor).toEqual({ progressMs: 82_000, at: 3_000 });
+  });
+
+  it("leaves both anchors untouched when already in sync", () => {
+    const state = {
+      anchor: { progressMs: 60_000, at: 1_000 },
+      scrollAnchor: { progressMs: 55_000, at: 1_000 },
+    };
+    const got = nextClockState(state, { ...playing, realProgressMs: 62_000, now: 3_000 });
+    expect(got.reason).toBe("none");
+    expect(got.anchor).toEqual(state.anchor);
+    expect(got.scrollAnchor).toEqual(state.scrollAnchor);
+  });
+
+  it("does nothing when there is no track", () => {
+    const state = { anchor: at0, scrollAnchor: at0 };
+    const got = nextClockState(state, {
+      trackId: null, prevTrackId: null, realProgressMs: 0, now: 5_000,
+      durationMs: 0, isPlaying: false, wasPlaying: false,
+    });
+    expect(got.reason).toBe("none");
+    expect(got.anchor).toEqual(at0);
   });
 });

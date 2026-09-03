@@ -120,3 +120,94 @@ export function nextAnchorForSample({
   }
   return nextAnchor(anchor, realProgressMs, now, durationMs, toleranceMs);
 }
+
+/**
+ * Move the scroll anchor to where the sheet currently is, so a speed change
+ * takes effect from here rather than snapping to a recomputed position. The
+ * position reached so far was reached at the OLD speed, hence prevSpeed.
+ */
+export function reanchorForSpeedChange(
+  scrollAnchor: Anchor,
+  prevSpeed: number,
+  now: number
+): Anchor {
+  return { progressMs: virtualProgressAt(scrollAnchor, now, prevSpeed), at: now };
+}
+
+export type ClockState = { anchor: Anchor; scrollAnchor: Anchor };
+export type ClockReason = "track-change" | "pause" | "resume" | "seek" | "drift" | "none";
+
+/**
+ * Advance both playback anchors for one incoming sample.
+ *
+ * `anchor` tracks real playback; `scrollAnchor` is the same clock read at the
+ * user's chosen scroll speed. Pure, so every transition below is unit-testable.
+ *
+ * Order matters: track change, then a play/pause transition, then the paused
+ * hold, then seek, then drift. A play/pause transition is
+ * a discontinuity and hard re-anchors both: drift deliberately moves
+ * `progressMs` without moving `at`, so a stored `progressMs` drifts far behind
+ * the true position over a song, and reading it while paused snapped the strip
+ * back to the first chord. While paused, every sample is exact (no latency to
+ * compensate), so both anchors stay pinned to it and the seek detector never
+ * fires on accumulated paused divergence.
+ */
+export function nextClockState(
+  state: ClockState,
+  {
+    trackId,
+    prevTrackId,
+    realProgressMs,
+    now,
+    durationMs,
+    isPlaying,
+    wasPlaying,
+    toleranceMs = SEEK_TOLERANCE_MS,
+  }: {
+    trackId: string | null;
+    prevTrackId: string | null;
+    realProgressMs: number;
+    now: number;
+    durationMs: number;
+    isPlaying: boolean;
+    wasPlaying: boolean;
+    toleranceMs?: number;
+  }
+): ClockState & { reason: ClockReason } {
+  const pin = (reason: ClockReason) => {
+    const a: Anchor = { progressMs: realProgressMs, at: now };
+    return { anchor: a, scrollAnchor: { ...a }, reason };
+  };
+
+  if (trackId === null) return { ...state, reason: "none" };
+
+  // Track identity is Task 2's job; this reducer adds the transitions around it.
+  const next = nextAnchorForSample({
+    anchor: state.anchor,
+    trackId,
+    prevTrackId,
+    realProgressMs,
+    now,
+    durationMs,
+    toleranceMs,
+  });
+
+  if (next.reason === "track-change") return pin("track-change");
+  if (isPlaying !== wasPlaying) return pin(isPlaying ? "resume" : "pause");
+  if (!isPlaying) return pin("none");
+  if (next.reason === "seek") return pin("seek");
+  if (next.reason === "none") return { ...state, reason: "none" };
+
+  // A drift step is a fixed latency correction, so the scroll anchor takes the
+  // same delta while keeping its own timestamp. Applying it to `progressMs`
+  // rather than `at` means the correction does not scale with speedMultiplier.
+  const delta = next.progressMs - state.anchor.progressMs;
+  return {
+    anchor: { progressMs: next.progressMs, at: next.at },
+    scrollAnchor: {
+      progressMs: state.scrollAnchor.progressMs + delta,
+      at: state.scrollAnchor.at,
+    },
+    reason: "drift",
+  };
+}
