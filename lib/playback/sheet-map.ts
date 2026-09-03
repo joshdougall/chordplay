@@ -195,3 +195,57 @@ export function progressFractionAtOffset(
 
   return Math.max(0, Math.min(1, target / map.totalWeight));
 }
+
+/** One chord occurrence, with the point in the song it is estimated to sound. */
+export type ChordCue = { name: string; fraction: number };
+
+/**
+ * Flatten the sheet's chords into an ordered list of cues.
+ *
+ * A unit's chords are spread across that unit's own fraction span, so the
+ * first chord of a line lands exactly on the line boundary rather than halfway
+ * into it: a chord sounds when its line starts.
+ */
+export function buildChordMap(map: SheetMap, lines: LineFacts[]): ChordCue[] {
+  const cues: ChordCue[] = [];
+  if (map.totalWeight === 0) return cues;
+
+  for (let u = 0; u < map.unitFirstLine.length; u++) {
+    const line = lines[map.unitFirstLine[u]];
+    if (!line || line.chordCount === 0) continue;
+
+    const cumEnd = map.cumWeight[u];
+    const cumStart = u > 0 ? map.cumWeight[u - 1] : 0;
+    const start = cumStart / map.totalWeight;
+    const end = cumEnd / map.totalWeight;
+
+    // Horizontal position is the timing information a positional sheet carries,
+    // so order by it rather than trusting DOM order.
+    const order = line.chordNames
+      .map((name, i) => ({ name, left: line.chordLefts[i] ?? i }))
+      .sort((a, b) => a.left - b.left);
+
+    for (let j = 0; j < order.length; j++) {
+      cues.push({
+        name: order[j].name,
+        fraction: start + (end - start) * (j / order.length),
+      });
+    }
+  }
+
+  return cues;
+}
+
+/** Which cue is sounding at `pct`. Returns -1 for an empty list. */
+export function cueIndexAtFraction(pct: number, cues: ChordCue[]): number {
+  if (cues.length === 0) return -1;
+  const clamped = Math.max(0, Math.min(1, pct));
+  let lo = 0;
+  let hi = cues.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (cues[mid].fraction <= clamped) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
