@@ -125,3 +125,59 @@ body {
 .chordpro {
   font-size: calc(1rem * var(--sheet-scale, 1));
 }
+
+/* Chord strip: the song's chord sequence, sliding, current chord centred.
+   Fixed height so the band never reflows the page between tracks. */
+.chord-strip {
+  height: 44px;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.chord-strip-track {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  height: 100%;
+  white-space: nowrap;
+  will-change: transform;
+}
+.chord-strip-cue {
+  font-family: JetBrains Mono, monospace;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  transition: color 120ms linear, opacity 120ms linear;
+}
+.chord-strip-cue[data-state="played"] { color: var(--ink-faint); opacity: 0.55; }
+.chord-strip-cue[data-state="current"] {
+  color: var(--bg);
+  background-color: var(--accent);
+  opacity: 1;
+}
+.chord-strip-cue[data-state="upcoming"] { color: var(--ink); opacity: 1; }
+
+/* Marker rail, so the eye knows where "now" is even mid-slide. */
+.chord-strip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background-color: var(--border);
+  transform: translateX(-0.5px);
+  pointer-events: none;
+}
+
+/* The line the playback clock is currently on. */
+.chord-line-current {
+  background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 3px;
+}
