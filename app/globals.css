@@ -126,19 +126,24 @@ body {
   font-size: calc(1rem * var(--sheet-scale, 1));
 }
 
-/* One source of truth for the band's height. The wrapper also holds the
-   mobile current-chord diagram, which is taller than the strip on its own, so
-   the diagram is scaled to fit rather than being allowed to set the height. */
-:root { --chord-strip-h: 56px; }
+/* One source of truth for the band's height. Mobile-first: the wrapper also
+   holds the mobile-only current-chord diagram, whose root ChordDiagram sets
+   its own size via an INLINE style (width/min-height), which CSS max-height
+   cannot override (min-height wins that contest). So rather than trying to
+   shrink the diagram to fit a small band, the band is sized to the diagram
+   instead: `size="sm"` renders at a fixed 117px (measured), and 124px clears
+   that with a small buffer. Desktop hides the diagram (`md:hidden`, the
+   right-hand rail shows diagrams there instead), so the band can shrink back
+   to a compact bar at the `md` breakpoint. */
+:root { --chord-strip-h: 124px; }
+@media (min-width: 768px) {
+  :root { --chord-strip-h: 56px; }
+}
 
 .chord-strip-diagram {
   height: 100%;
   display: flex;
   align-items: center;
-}
-.chord-strip-diagram > * {
-  max-height: 100%;
-  width: auto;
 }
 
 /* Chord strip: the song's chord sequence, sliding, current chord centred.
