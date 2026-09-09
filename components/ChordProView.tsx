@@ -127,9 +127,19 @@ export function ChordProView({
       el.setAttribute("tabindex", "0");
       const handler: EventListener = (ev) => {
         ev.preventDefault();
-        // On mobile the palette is the horizontal strip; on desktop it's the rail.
-        // querySelector finds whichever is visible first in DOM order.
-        const target = root.querySelector<HTMLElement>(`[data-chord="${CSS.escape(name)}"]`);
+        // Diagram containers carry data-chord-diagram; sheet chord tokens carry
+        // data-chord. Querying data-chord matched both, and the mobile palette is
+        // md:hidden yet still first in document order, so on desktop this used to
+        // resolve to a display:none node and scrollIntoView did nothing.
+        const candidates = root.querySelectorAll<HTMLElement>(
+          `[data-chord-diagram="${CSS.escape(name)}"]`
+        );
+        let target: HTMLElement | null = null;
+        for (const c of candidates) {
+          // offsetParent is null for a display:none element, which is exactly the
+          // hidden palette we must skip.
+          if (c.offsetParent !== null) { target = c; break; }
+        }
         if (!target) return;
         target.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
         target.classList.remove("chord-pulse");
