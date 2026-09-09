@@ -3,6 +3,7 @@ import { getConfig } from "@/lib/config";
 import { readPrefs, writePrefs, Prefs } from "@/lib/prefs/store";
 import { getSession } from "@/lib/auth/session";
 import { recordEvent } from "@/lib/usage/db";
+import { mergePrefs } from "@/lib/prefs/merge";
 
 export async function GET() {
   const session = await getSession();
@@ -18,15 +19,7 @@ export async function PUT(req: NextRequest) {
   const cfg = getConfig();
   const body = (await req.json()) as Partial<Prefs>;
   const current = await readPrefs(cfg.dataPath, session.userId);
-  const merged: Prefs = {
-    autoScroll: body.autoScroll ?? current.autoScroll,
-    showChordDiagrams: body.showChordDiagrams ?? current.showChordDiagrams,
-    songPreferences: body.songPreferences ?? current.songPreferences,
-    trackOverrides: body.trackOverrides ?? current.trackOverrides,
-    songTranspose: body.songTranspose ?? current.songTranspose,
-    preferredVersion: body.preferredVersion ?? current.preferredVersion,
-    splitView: body.splitView ?? current.splitView,
-  };
+  const merged: Prefs = mergePrefs(body, current);
   await writePrefs(cfg.dataPath, session.userId, merged);
 
   // Emit transpose events for each songId whose value changed
