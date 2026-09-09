@@ -105,6 +105,11 @@ export function ChordProView({
   // Same chord list either way, but taken from whichever renderer is showing.
   const uniqueChords = positional && showChordDiagrams ? positional.uniqueChords : parsedChords;
 
+  const sourceUrl = useMemo(() => {
+    const m = source.match(/\{\s*source\s*:\s*(https?:\/\/[^}\s]+)\s*\}/i);
+    return m ? m[1] : null;
+  }, [source]);
+
   const rootRef = useRef<HTMLDivElement | null>(null);
   // Widened to HTMLElement: positional sheets render into a <pre>, inline into a <div>.
   const sheetRef = useRef<HTMLElement | null>(null);
@@ -168,13 +173,24 @@ export function ChordProView({
           independent `sticky top-0` elements put whichever had the lower z-index
           underneath the other. */}
       <div className="sticky top-0 z-20" style={{ backgroundColor: "var(--bg)" }}>
-        {(keyLabel || sheetCapo) && (
+        {(keyLabel || sheetCapo || sourceUrl) && (
           <div className="mb-2 py-1 text-xs uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>
             {[
               keyLabel ? `Key · ${keyLabel}` : null,
               sheetCapo ? `capo ${sheetCapo}` : null,
               capo ? `capo ${capo.capoFret} → play in ${capo.shapeKey} shapes` : null,
             ].filter(Boolean).join(" · ")}
+            {sourceUrl && (
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline ml-2"
+                style={{ color: "var(--ink-faint)" }}
+              >
+                source
+              </a>
+            )}
           </div>
         )}
         {showChordDiagrams && uniqueChords.length > 0 && !chordStripActive && (
