@@ -42,10 +42,14 @@ export function ChordProView({
   source,
   transpose = 0,
   showChordDiagrams = true,
+  chordStripActive = false,
 }: {
   source: string;
   transpose?: number;
   showChordDiagrams?: boolean;
+  /** When true the strip owns the mobile top band, so the horizontal
+   *  diagram palette stands down rather than competing for it. */
+  chordStripActive?: boolean;
 }) {
   const containsTab = useMemo(() => hasAsciiTabLines(source), [source]);
 
@@ -150,41 +154,35 @@ export function ChordProView({
 
   return (
     <div ref={rootRef}>
-      {(keyLabel || sheetCapo) && (
-        // Sticky: this is the line you read before you start playing, and it
-        // used to scroll away while the chord diagrams above it stayed pinned.
-        <div
-          className="sticky top-0 z-20 mb-2 py-1 text-xs uppercase tracking-wide"
-          style={{ color: "var(--ink-faint)", backgroundColor: "var(--bg)" }}
-        >
-          {[
-            keyLabel ? `Key · ${keyLabel}` : null,
-            // The capo the sheet is written for. Previously never shown at all,
-            // so a player picked up the guitar in the wrong key.
-            sheetCapo ? `capo ${sheetCapo}` : null,
-            capo ? `capo ${capo.capoFret} → play in ${capo.shapeKey} shapes` : null,
-          ].filter(Boolean).join(" · ")}
-        </div>
-      )}
+      {/* One sticky context, so the key line and the strip cannot overlap. Two
+          independent `sticky top-0` elements put whichever had the lower z-index
+          underneath the other. */}
+      <div className="sticky top-0 z-20" style={{ backgroundColor: "var(--bg)" }}>
+        {(keyLabel || sheetCapo) && (
+          <div className="mb-2 py-1 text-xs uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>
+            {[
+              keyLabel ? `Key · ${keyLabel}` : null,
+              sheetCapo ? `capo ${sheetCapo}` : null,
+              capo ? `capo ${capo.capoFret} → play in ${capo.shapeKey} shapes` : null,
+            ].filter(Boolean).join(" · ")}
+          </div>
+        )}
+        {showChordDiagrams && uniqueChords.length > 0 && !chordStripActive && (
+          <div
+            className="md:hidden chord-palette flex gap-3 overflow-x-auto py-2 mb-3"
+            style={{ borderBottom: "1px solid var(--border)" }}
+            aria-label="Chord diagrams"
+          >
+            {uniqueChords.map(c => (
+              <div key={c} data-chord-diagram={c} className="shrink-0 transition-transform">
+                <ChordDiagram name={c} size="sm" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="md:flex md:flex-row md:gap-4">
         <div className="flex-1 min-w-0">
-          {showChordDiagrams && uniqueChords.length > 0 && (
-            /* Mobile: top-sticky horizontal scroll palette */
-            <div
-              className="md:hidden chord-palette sticky top-0 z-10 flex gap-3 overflow-x-auto py-2 mb-3"
-              style={{
-                borderBottom: "1px solid var(--border)",
-                backgroundColor: "var(--bg)",
-              }}
-              aria-label="Chord diagrams"
-            >
-              {uniqueChords.map(c => (
-                <div key={c} data-chord={c} className="shrink-0 transition-transform">
-                  <ChordDiagram name={c} size="sm" />
-                </div>
-              ))}
-            </div>
-          )}
           {positional ? (
             <pre ref={el => { sheetRef.current = el; }} className="chordpro-pre font-mono">
               {positional.lines.map((line, i) => (
@@ -220,7 +218,7 @@ export function ChordProView({
               aria-label="Chord diagrams"
             >
               {uniqueChords.map(c => (
-                <div key={c} data-chord={c}>
+                <div key={c} data-chord-diagram={c}>
                   <ChordDiagram name={c} size="sm" />
                 </div>
               ))}

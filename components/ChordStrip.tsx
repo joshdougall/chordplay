@@ -71,15 +71,18 @@ export function ChordStrip({
   const currentName = showMarker ? cues[currentIdx]?.name : undefined;
 
   return (
-    <div className="flex items-center gap-2" style={{ backgroundColor: "var(--bg)" }}>
+    <div
+      className="flex items-center gap-2 overflow-hidden"
+      style={{ height: "var(--chord-strip-h)", backgroundColor: "var(--bg)" }}
+    >
       {currentName && (
         // Mobile only: this replaces the horizontal diagram palette, so the
         // current chord's shape has to be reachable without it.
-        <div className="md:hidden shrink-0 pl-2" data-chord-diagram={currentName}>
+        <div className="chord-strip-diagram md:hidden shrink-0 pl-2" data-chord-diagram={currentName}>
           <ChordDiagram name={currentName} size="sm" />
         </div>
       )}
-      <div className="chord-strip flex-1" aria-label="Chord sequence" role="presentation">
+      <div className="chord-strip flex-1" aria-label="Chord sequence" role="group">
         <div ref={trackRef} className="chord-strip-track">
           {cues.map((cue, i) => (
             <span

@@ -126,10 +126,25 @@ body {
   font-size: calc(1rem * var(--sheet-scale, 1));
 }
 
+/* One source of truth for the band's height. The wrapper also holds the
+   mobile current-chord diagram, which is taller than the strip on its own, so
+   the diagram is scaled to fit rather than being allowed to set the height. */
+:root { --chord-strip-h: 56px; }
+
+.chord-strip-diagram {
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+.chord-strip-diagram > * {
+  max-height: 100%;
+  width: auto;
+}
+
 /* Chord strip: the song's chord sequence, sliding, current chord centred.
    Fixed height so the band never reflows the page between tracks. */
 .chord-strip {
-  height: 44px;
+  height: var(--chord-strip-h);
   overflow: hidden;
   position: relative;
   background-color: var(--bg);

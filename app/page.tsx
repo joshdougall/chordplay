@@ -5,6 +5,7 @@ import { useNowPlaying } from "@/hooks/useNowPlaying";
 import { NowPlayingHeader } from "@/components/NowPlayingHeader";
 import { ConnectSpotify } from "@/components/ConnectSpotify";
 import { ChordProView } from "@/components/ChordProView";
+import { ChordStrip } from "@/components/ChordStrip";
 import { TabView } from "@/components/TabView";
 import { AutoScroller } from "@/components/AutoScroller";
 import { QuickAddForm } from "@/components/QuickAddForm";
@@ -249,6 +250,13 @@ export default function HomePage() {
     await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
   }
 
+  async function toggleChordStrip() {
+    if (!prefs) return;
+    const next = { ...prefs, chordStrip: !(prefs.chordStrip ?? false) };
+    setPrefs(next);
+    await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
+  }
+
   async function setAutoScrollSpeed(speed: number) {
     if (!prefs) return;
     const next = { ...prefs, autoScrollSpeed: speed };
@@ -467,8 +475,6 @@ export default function HomePage() {
       content !== null ? "loaded" : "empty",
     ].join(":"),
   });
-  // Unread until Task 11 mounts the chord strip.
-  void chordCues;
 
   useCurrentLine({
     enabled: (prefs?.chordStrip ?? false) && !editing,
@@ -530,6 +536,14 @@ export default function HomePage() {
             })}
           </div>
         )}
+        <label className="flex items-center gap-2" style={{ color: "var(--ink-muted)" }}>
+          <input
+            type="checkbox"
+            checked={prefs?.chordStrip ?? false}
+            onChange={toggleChordStrip}
+          />
+          Chord strip
+        </label>
         {/* Sheet text size. Sized like the transpose buttons, which are the only
             other controls a player touches while holding the instrument. */}
         {prefs && (
@@ -702,6 +716,20 @@ export default function HomePage() {
           })}
         </div>
       )}
+      {prefs && (
+        <ChordStrip
+          enabled={(prefs.chordStrip ?? false) && !editing}
+          isChordSheet={
+            // !!chordEntry, not `!== null`: allMatches.find() yields undefined, not
+            // null, so `!== null` would be true for a missing entry.
+            effectiveMatch?.format === "chordpro" || (splitView && !!chordEntry)
+          }
+          clock={np.data ? clock : null}
+          durationMs={np.data?.durationMs ?? 0}
+          isPlaying={np.data?.isPlaying ?? false}
+          cues={chordCues}
+        />
+      )}
       <div ref={scrollRef} className="flex-1 overflow-auto">
         {editing && effectiveMatch ? (
           <Editor id={effectiveMatch.id} onClose={() => setEditing(false)} onSaved={() => setEditing(false)} />
@@ -713,9 +741,10 @@ export default function HomePage() {
             tabContent={tabContent}
             transposeOffset={transposeOffset}
             showChordDiagrams={prefs?.showChordDiagrams ?? true}
+            chordStripActive={prefs?.chordStrip ?? false}
           />
         ) : effectiveMatch && content !== null ? (
-          renderEntry(effectiveMatch, content, transposeOffset, prefs?.showChordDiagrams ?? true)
+          renderEntry(effectiveMatch, content, transposeOffset, prefs?.showChordDiagrams ?? true, prefs?.chordStrip ?? false)
         ) : effectiveTrack ? (
           <div>
             <QuickAddForm track={effectiveTrack} onCreated={() => { setDismissedTrackId(null); setMatchRefetch(n => n + 1); }} />
@@ -756,8 +785,15 @@ export default function HomePage() {
   );
 }
 
-function renderEntry(entry: LibraryEntry, content: string, transpose = 0, showChordDiagrams = true) {
-  if (entry.format === "chordpro") return <ChordProView source={content} transpose={transpose} showChordDiagrams={showChordDiagrams} />;
+function renderEntry(
+  entry: LibraryEntry,
+  content: string,
+  transpose = 0,
+  showChordDiagrams = true,
+  chordStripActive = false
+) {
+  if (entry.format === "chordpro")
+    return <ChordProView source={content} transpose={transpose} showChordDiagrams={showChordDiagrams} chordStripActive={chordStripActive} />;
   if (entry.format === "ascii-tab") return <TabView kind="ascii" text={content} />;
   return <TabView kind="guitar-pro" src={`/api/library/raw/${encodeURIComponent(entry.id)}`} />;
 }
@@ -769,13 +805,14 @@ type SplitViewProps = {
   tabContent: string | null;
   transposeOffset: number;
   showChordDiagrams: boolean;
+  chordStripActive: boolean;
 };
 
-function SplitView({ chordEntry, chordContent, tabEntry, tabContent, transposeOffset, showChordDiagrams }: SplitViewProps) {
+function SplitView({ chordEntry, chordContent, tabEntry, tabContent, transposeOffset, showChordDiagrams, chordStripActive }: SplitViewProps) {
   const loadingStyle = { color: "var(--ink-faint)", padding: "1rem" };
 
   const chordPane = chordContent !== null
-    ? <ChordProView source={chordContent} transpose={transposeOffset} showChordDiagrams={showChordDiagrams} />
+    ? <ChordProView source={chordContent} transpose={transposeOffset} showChordDiagrams={showChordDiagrams} chordStripActive={chordStripActive} />
     : <div style={loadingStyle}>Loading chords…</div>;
 
   const tabPane = tabEntry.format === "guitar-pro"
