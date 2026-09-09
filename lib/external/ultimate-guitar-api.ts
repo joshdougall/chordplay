@@ -14,6 +14,7 @@ import { logger } from "@/lib/logger";
 import { cleanTitleForSearch, cleanArtistForSearch } from "./clean-title";
 import { validateResult } from "./validate";
 import { isAcceptableLanguage } from "./language";
+import { parseCapoDirective } from "@/lib/chordpro/capo";
 
 export const UG_API_ID = "ultimate-guitar-api";
 export const UG_API_NAME = "Ultimate Guitar";
@@ -95,6 +96,8 @@ interface UGTabInfoResponse {
   rating?: number;
   content?: string;
   url_web?: string;
+  /** UG reports the capo fret as a number on many tabs. Absent or 0 = none. */
+  capo?: number;
 }
 
 // --- API calls ----------------------------------------------------------------
@@ -220,11 +223,22 @@ export async function fetchUGApiChords(
     best.url ??
     `https://www.ultimate-guitar.com/tab/${best.id}`;
 
+  // UG carries the capo as metadata, not always in the tab body. Emit it as a
+  // directive so the sheet shows it, but never override a capo the body states.
+  const ugCapo =
+    typeof tabInfo.capo === "number" && tabInfo.capo >= 1 && tabInfo.capo <= 12
+      ? tabInfo.capo
+      : null;
+  const capoDirective =
+    ugCapo !== null && parseCapoDirective(chordPro) === null
+      ? `{capo: ${ugCapo}}\n`
+      : "";
+
   return {
     source: UG_API_ID,
     sourceName: UG_API_NAME,
     sourceUrl,
-    content: `{title: ${resolvedTitle}}\n{artist: ${resolvedArtist}}\n\n${chordPro}`,
+    content: `{title: ${resolvedTitle}}\n{artist: ${resolvedArtist}}\n${capoDirective}\n${chordPro}`,
     title: resolvedTitle,
     artist: resolvedArtist,
     rating,
