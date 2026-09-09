@@ -42,6 +42,11 @@ describe("parseCapoDirective — must NOT match", () => {
     "Capo",                              // no fret given
     "Capo 0",                            // out of range
     "Capo 13",                           // out of range
+    "Well, capo 5 was all he had",             // lyric with a comma lead-in
+    "and I sang, capo 2 in my hand",           // lyric with a comma lead-in
+    "(capo 3) she whispered",                  // decoration but a lyric follows
+    "Capo I have never seen a capo like this", // roman-numeral collision with "I"
+    "No capo, but capo 2 works too",           // negation followed by a number
   ])("%s -> null", (src) => {
     expect(parseCapoDirective(src)).toBeNull();
   });
@@ -66,5 +71,12 @@ describe("parseCapoDirective — scope", () => {
 
   it("returns null for a sheet with no capo at all", () => {
     expect(parseCapoDirective("[Verse]\n[C]hello [G]world")).toBeNull();
+  });
+
+  it("ignores a prose capo that appears only past the preamble", () => {
+    const lines: string[] = [];
+    for (let i = 0; i < 30; i++) lines.push(`line ${i} of lyrics`);
+    lines.push("Capo 6");
+    expect(parseCapoDirective(lines.join("\n"))).toBeNull();
   });
 });

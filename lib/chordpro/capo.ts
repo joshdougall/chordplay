@@ -7,23 +7,32 @@ const ROMAN: Record<string, number> = {
  *  word, and a false capo is worse than none. */
 const PREAMBLE_LINES = 25;
 
-/**
- * A capo phrase, anchored so it cannot start mid-word or mid-sentence.
- *
- * The capo token must sit at the start of the line or directly after an opening
- * bracket, an asterisk, or a list separator — the shapes real sheets use
- * ("(Capo 2)", "*Capo 3*", "Tuning: Standard, Capo 2"). A space is deliberately
- * NOT a valid lead-in, which is what keeps "No capo" and "I put a capo on my
- * heart" from matching.
- *
- * Between the word and the number we allow only filler: punctuation, a dash of
- * any width, and the words "on"/"at"/"fret".
- */
-const CAPO_NUMERIC =
-  /(?:^|[([*,;|]\s*)capo\b[\s:.–—-]*(?:(?:on|at)\s+)?(?:fret\s+)?(\d{1,2})(?:st|nd|rd|th)?\b/i;
+// Between "capo" and the fret we allow only filler: punctuation, a dash of any
+// width, and the words "on" / "at" / "fret".
+const SEP = String.raw`[\s:.–—-]*`;
+const NUM = String.raw`(?:(?:on|at)\s+)?(?:fret\s+)?(\d{1,2})(?:st|nd|rd|th)?`;
+const ROM = String.raw`(?:(?:on|at)\s+)?(?:fret\s+)?([ivx]{1,4})`;
 
-const CAPO_ROMAN =
-  /(?:^|[([*,;|]\s*)capo\b[\s:.–—-]*(?:(?:on|at)\s+)?(?:fret\s+)?([ivx]{1,4})\b/i;
+/**
+ * Rule (a): the WHOLE line is nothing but a capo phrase, allowing surrounding
+ * decoration and trailing punctuation.
+ *
+ * An earlier version allowed the capo token to follow any of ( [ * , ; | and
+ * that let ordinary prose through: "Well, capo 5 was all he had" parsed as
+ * capo 5. Requiring the phrase to be the entire line is what separates
+ * "(Capo 2)" from "(capo 3) she whispered".
+ */
+const WHOLE_NUM = new RegExp(`^[\\s*(\\[]*capo\\b${SEP}${NUM}\\b(?:\\s*fret)?[\\s*)\\].,;!]*$`, "i");
+const WHOLE_ROM = new RegExp(`^[\\s*(\\[]*capo\\b${SEP}${ROM}\\b(?:\\s*fret)?[\\s*)\\].,;!]*$`, "i");
+
+/**
+ * Rule (b): a metadata line naming the capo among other fields, such as
+ * "Tuning: Standard, Capo 2". The line must OPEN with a "Label:" for a comma
+ * lead-in to be trusted at all.
+ */
+const META_LINE = /^[A-Za-z][A-Za-z ]{0,14}:/;
+const IN_META_NUM = new RegExp(`[,;|]\\s*capo\\b${SEP}${NUM}\\b`, "i");
+const IN_META_ROM = new RegExp(`[,;|]\\s*capo\\b${SEP}${ROM}\\b`, "i");
 
 const DIRECTIVE = /^\{\s*capo\s*:\s*([^}]+)\}$/i;
 
@@ -61,11 +70,10 @@ export function parseCapoDirective(source: string): number | null {
     if (line === "") continue;
     if (++seen > PREAMBLE_LINES) break;
 
-    // "No capo" / "Capo: none" are statements that there is no capo.
-    if (/\b(?:no|without\s+a?)\s+capo\b/i.test(line)) continue;
-    if (/capo\b\s*[:\-]?\s*(?:none|n\/a)\b/i.test(line)) continue;
-
-    const m = CAPO_NUMERIC.exec(line) ?? CAPO_ROMAN.exec(line);
+    let m = WHOLE_NUM.exec(line) ?? WHOLE_ROM.exec(line);
+    if (!m && META_LINE.test(line)) {
+      m = IN_META_NUM.exec(line) ?? IN_META_ROM.exec(line);
+    }
     if (!m) continue;
     const fret = fretFrom(m[1]);
     if (fret !== null) return fret;
