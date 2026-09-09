@@ -15,6 +15,10 @@ describe("withSourceDirective", () => {
     const bodyIdx = lines.findIndex(l => l.includes("Look at the stars"));
     expect(srcIdx).toBeGreaterThan(-1);
     expect(srcIdx).toBeLessThan(bodyIdx);
+    // Not just "somewhere above the body" — immediately after the last
+    // leading directive, so an always-prepend implementation would fail this.
+    const artistIdx = lines.findIndex(l => l.startsWith("{artist:"));
+    expect(srcIdx).toBe(artistIdx + 1);
   });
 
   it("prepends when the sheet has no directives at all", () => {
@@ -34,6 +38,23 @@ describe("withSourceDirective", () => {
   it("rejects a non-http url rather than embedding it", () => {
     // Defensive: the directive is rendered as a link.
     expect(withSourceDirective("[C]hi", "javascript:alert(1)")).toBe("[C]hi");
+  });
+
+  it("rejects a url containing a newline, which could otherwise inject a second directive", () => {
+    // The value is spliced into a line that is later join("\n")ed, so an
+    // embedded newline expands into real lines and a nested {source: ...}
+    // among them would win the render-side extraction.
+    const evil = "https://real.example.com/x\n{source: https://attacker.evil/phish}\nmore";
+    expect(withSourceDirective("{title: X}\n\n[C]hi", evil)).toBe("{title: X}\n\n[C]hi");
+  });
+
+  it("rejects a url containing a brace, which would truncate on read-back", () => {
+    expect(withSourceDirective("[C]hi", "https://example.com/a}b")).toBe("[C]hi");
+  });
+
+  it("still accepts a normal url with a query string and fragment", () => {
+    const out = withSourceDirective("[C]hi", "https://example.com/a?b=1&c=2#frag");
+    expect(out).toContain("{source: https://example.com/a?b=1&c=2#frag}");
   });
 
   it("survives stripMetaPreamble, which is why a directive is used", () => {

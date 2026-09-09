@@ -64,9 +64,22 @@ function norm(s: string) {
  * Injected here rather than in each provider so all six get it from the one
  * place sourceUrl is already part of the contract.
  */
+/**
+ * The URL must be a single http(s) token with no whitespace and no braces.
+ *
+ * A prefix-only check is not enough. The value comes from scraped provider
+ * content, and it is spliced into a line that is later joined with "\n": a
+ * URL containing an embedded newline therefore expands into extra lines, and
+ * a nested `{source: ...}` among them becomes a valid directive of its own
+ * that survives stripMetaPreamble and wins the render-side extraction —
+ * silently replacing the real provenance link. Braces are excluded for the
+ * same reason and because the read-back regex stops at the first `}`.
+ */
+const SAFE_SOURCE_URL = /^https?:\/\/[^\s{}]+$/i;
+
 export function withSourceDirective(content: string, sourceUrl: string): string {
   if (!sourceUrl) return content;
-  if (!/^https?:\/\//i.test(sourceUrl)) return content;
+  if (!SAFE_SOURCE_URL.test(sourceUrl)) return content;
   if (/^\s*\{\s*source\s*:/im.test(content)) return content;
 
   const directive = `{source: ${sourceUrl}}`;
