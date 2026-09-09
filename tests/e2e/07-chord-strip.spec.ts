@@ -86,7 +86,7 @@ test.describe("Chord strip", () => {
   test.beforeEach(async ({ context, page }) => {
     resetLibrary();
     seedSheet(SHEET_ID, SHEET_CONTENT);
-    await seedAuthentication();
+    seedAuthentication();
     await setSessionCookie(context);
     progressMs = 0;
     chordStrip = true;
@@ -148,14 +148,20 @@ test.describe("Chord strip", () => {
     await expect(marked.locator(".chord")).toHaveCount(0);
   });
 
-  test("the band keeps its height across a track change", async ({ page }) => {
-    // Measure the WRAPPER, not `.chord-strip`. The inner band is a fixed height
-    // by construction, so asserting on it would pass even while the wrapper
-    // jumped around the mobile chord diagram appearing and disappearing.
-    await page.setViewportSize({ width: 390, height: 844 }); // phone: the case that reflowed
+  test("the band has a fixed height at each breakpoint, and keeps it across a track change", async ({ page }) => {
+    // Assert the actual value, not before === after. The strip retains the
+    // outgoing song's cues across a track change on purpose (useSheetMap's
+    // lastCuesRef), so the mobile diagram never disappears mid-test and a
+    // self-comparison would pass even against a wrapper with no fixed height.
+    // Measure the WRAPPER, not `.chord-strip`: the inner band is a fixed
+    // height by construction, so asserting on it alone would pass even while
+    // the wrapper (which also holds the mobile diagram) jumped around.
+    const wrapper = () => page.locator(".chord-strip").locator("xpath=..");
+
+    await page.setViewportSize({ width: 390, height: 844 }); // phone: diagram visible
     await page.goto("/");
-    const strip = page.locator(".chord-strip").locator("xpath=..");
-    const before = await strip.boundingBox();
+    await expect(page.locator(".chord-strip")).toBeVisible();
+    expect((await wrapper().boundingBox())?.height).toBe(124);
 
     // Content is nulled on a track change; the band must not collapse.
     await page.route("**/api/now-playing", route =>
@@ -167,9 +173,11 @@ test.describe("Chord strip", () => {
         }),
       })
     );
-    await page.waitForTimeout(2_500); // one poll cycle
-    const after = await page.locator(".chord-strip").locator("xpath=..").boundingBox();
-    expect(after?.height).toBe(before?.height);
+    await page.waitForTimeout(3_000); // one poll cycle (2000ms), with margin
+    expect((await wrapper().boundingBox())?.height).toBe(124);
+
+    await page.setViewportSize({ width: 1280, height: 900 }); // desktop: diagram is md:hidden
+    expect((await wrapper().boundingBox())?.height).toBe(56);
   });
 
   test("a font-scale change keeps the highlight on a real line", async ({ page }) => {
