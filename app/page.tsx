@@ -13,6 +13,7 @@ import { LibraryPicker } from "@/components/LibraryPicker";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { usePlaybackClock } from "@/hooks/usePlaybackClock";
 import { useSheetMap } from "@/hooks/useSheetMap";
+import { useCurrentLine } from "@/hooks/useCurrentLine";
 import { OverflowMenu } from "@/components/OverflowMenu";
 import { ShortcutsHelp } from "@/components/ShortcutsHelp";
 import type { LibraryEntry } from "@/lib/library/index";
@@ -469,7 +470,15 @@ export default function HomePage() {
   // Unread until Task 11 mounts the chord strip.
   void chordCues;
 
-  // Hooks must not be called conditionally, so both hooks above are called
+  useCurrentLine({
+    enabled: (prefs?.chordStrip ?? false) && !editing,
+    clock: np.data ? clock : null,
+    durationMs: np.data?.durationMs ?? 0,
+    isPlaying: np.data?.isPlaying ?? false,
+    map: sheetMap,
+  });
+
+  // Hooks must not be called conditionally, so the hooks above are called
   // before these early returns rather than after.
   if (connected === false) return <ConnectSpotify />;
   if (connected === null) return <div className="p-8" style={{ color: "var(--ink-muted)" }}>Loading…</div>;
