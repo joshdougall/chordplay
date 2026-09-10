@@ -115,7 +115,6 @@ export function ChordProView({
   const sheetRef = useRef<HTMLElement | null>(null);
 
   // Click a chord in the sheet → scroll its palette diagram into view and pulse it.
-  // Queries [data-chord] from the root so both mobile and desktop palettes work.
   useEffect(() => {
     if (!sheetRef.current || !rootRef.current) return;
     const sheet = sheetRef.current;

@@ -95,18 +95,17 @@ export function readSheetLines(
 /** Read the sheet and build both maps in one pass. */
 export function buildLiveSheetMap(
   container: HTMLElement
-): { map: LiveSheetMap | null; facts: LineFacts[]; cues: ChordCue[] } {
+): { map: LiveSheetMap | null; cues: ChordCue[] } {
   const sheetEl = findSheetElement(container);
-  if (!sheetEl) return { map: null, facts: [], cues: [] };
+  if (!sheetEl) return { map: null, cues: [] };
 
   const { facts, elements } = readSheetLines(sheetEl, container);
   const base = buildSheetMap(facts);
-  if (!base) return { map: null, facts, cues: [] };
+  if (!base) return { map: null, cues: [] };
 
   const unitElements = base.unitLineIndex.map(i => elements[i]);
   return {
     map: { ...base, unitElements },
-    facts,
     cues: buildChordMap(base, facts),
   };
 }

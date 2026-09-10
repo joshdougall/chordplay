@@ -173,7 +173,7 @@ body {
   will-change: transform;
 }
 .chord-strip-cue {
-  font-family: JetBrains Mono, monospace;
+  font-family: var(--font-mono-brand, "JetBrains Mono", monospace);
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--ink-muted);

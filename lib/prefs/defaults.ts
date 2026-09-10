@@ -9,9 +9,9 @@ export type Prefs = {
   splitView?: Record<string, boolean>;
   /** Sheet text scale multiplier. 1 = the original hard-coded 16px. */
   fontScale?: number;
-  /** Chord strip visibility. Declared here ahead of the strip itself (Task 9)
-   *  because useSheetMap (Task 7) already needs to know whether it's on to
-   *  decide whether to keep the sheet map current. */
+  /** Chord strip visibility. Declared here ahead of the strip component
+   *  itself, because useSheetMap needs to know whether it's on to decide
+   *  whether to keep the sheet map current even with the strip unmounted. */
   chordStrip?: boolean;
 };
 

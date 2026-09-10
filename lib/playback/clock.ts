@@ -181,7 +181,9 @@ export function nextClockState(
 
   if (trackId === null) return { ...state, reason: "none" };
 
-  // Track identity is Task 2's job; this reducer adds the transitions around it.
+  // nextAnchorForSample decides whether trackId changed (a "track-change"
+  // reset) or the sample is just a seek/steady-state update; this reducer
+  // layers the play/pause and resume transitions on top of that.
   const next = nextAnchorForSample({
     anchor: state.anchor,
     trackId,
