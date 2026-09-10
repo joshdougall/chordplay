@@ -14,6 +14,7 @@ import { logger } from "@/lib/logger";
 import { cleanTitleForSearch, cleanArtistForSearch } from "./clean-title";
 import { validateResult } from "./validate";
 import { isAcceptableLanguage } from "./language";
+import { parseCapoDirective } from "@/lib/chordpro/capo";
 
 export const UG_API_ID = "ultimate-guitar-api";
 export const UG_API_NAME = "Ultimate Guitar";
@@ -71,6 +72,12 @@ export function ugContentToChordPro(content: string): string {
     .trim();
 }
 
+/** Strip characters that could close a `{...}` directive early or splice in a
+ *  new line, from a scraped value bound for a ChordPro directive. */
+function stripDirectiveInjection(s: string): string {
+  return s.replace(/[{}\r\n]/g, "");
+}
+
 // --- Response shapes (minimal) ------------------------------------------------
 
 interface UGTab {
@@ -95,6 +102,8 @@ interface UGTabInfoResponse {
   rating?: number;
   content?: string;
   url_web?: string;
+  /** UG reports the capo fret as a number on many tabs. Absent or 0 = none. */
+  capo?: number;
 }
 
 // --- API calls ----------------------------------------------------------------
@@ -211,8 +220,14 @@ export async function fetchUGApiChords(
     return null;
   }
 
-  const resolvedTitle = tabInfo.song_name ?? best.song_name ?? title;
-  const resolvedArtist = tabInfo.artist_name ?? best.artist_name ?? artist;
+  // Sibling of the `{source: ...}` injection SAFE_SOURCE_URL guards against in
+  // chords.ts: these values are UG-scraped and spliced straight into ChordPro
+  // directives below. An untrusted song_name/artist_name containing a brace or
+  // a newline could close the directive early and open a forged one (e.g. its
+  // own `{source: https://evil}` that wins the render-side extraction), so
+  // strip the characters that make that possible before interpolating.
+  const resolvedTitle = stripDirectiveInjection(tabInfo.song_name ?? best.song_name ?? title);
+  const resolvedArtist = stripDirectiveInjection(tabInfo.artist_name ?? best.artist_name ?? artist);
   const rating = tabInfo.rating ?? best.rating;
   const sourceUrl =
     tabInfo.url_web ??
@@ -220,11 +235,22 @@ export async function fetchUGApiChords(
     best.url ??
     `https://www.ultimate-guitar.com/tab/${best.id}`;
 
+  // UG carries the capo as metadata, not always in the tab body. Emit it as a
+  // directive so the sheet shows it, but never override a capo the body states.
+  const ugCapo =
+    typeof tabInfo.capo === "number" && tabInfo.capo >= 1 && tabInfo.capo <= 12
+      ? tabInfo.capo
+      : null;
+  const capoDirective =
+    ugCapo !== null && parseCapoDirective(chordPro) === null
+      ? `{capo: ${ugCapo}}\n`
+      : "";
+
   return {
     source: UG_API_ID,
     sourceName: UG_API_NAME,
     sourceUrl,
-    content: `{title: ${resolvedTitle}}\n{artist: ${resolvedArtist}}\n\n${chordPro}`,
+    content: `{title: ${resolvedTitle}}\n{artist: ${resolvedArtist}}\n${capoDirective}\n${chordPro}`,
     title: resolvedTitle,
     artist: resolvedArtist,
     rating,

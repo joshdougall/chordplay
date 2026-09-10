@@ -112,4 +112,23 @@ describe("renderPositional", () => {
     const { uniqueChords } = renderPositional(SNOWSHOES, 0);
     expect(uniqueChords).toEqual(["Dmaj7", "A"]);
   });
+
+  it("tags a bare section header segment so it can be weighted 0 and styled", () => {
+    const { lines } = renderPositional(SNOWSHOES, 0);
+    const intro = lines.find(l => text(l).trim() === "Intro")!;
+    expect(intro.segments).toHaveLength(1);
+    expect(intro.segments[0].isHeader).toBe(true);
+  });
+
+  it("does not tag a lyric line as a header", () => {
+    const { lines } = renderPositional(SNOWSHOES, 0);
+    const lyric = lines.find(l => text(l).includes("I hope you know"))!;
+    expect(lyric.segments[0].isHeader).toBeUndefined();
+  });
+
+  it("does not tag a chord-only line as a header", () => {
+    const { lines } = renderPositional(SNOWSHOES, 0);
+    const chordLine = lines.find(l => l.segments.some(s => s.isChord));
+    expect(chordLine!.segments.every(s => !s.isHeader)).toBe(true);
+  });
 });

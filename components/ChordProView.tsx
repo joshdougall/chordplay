@@ -42,10 +42,14 @@ export function ChordProView({
   source,
   transpose = 0,
   showChordDiagrams = true,
+  chordStripActive = false,
 }: {
   source: string;
   transpose?: number;
   showChordDiagrams?: boolean;
+  /** When true the strip owns the mobile top band, so the horizontal
+   *  diagram palette stands down rather than competing for it. */
+  chordStripActive?: boolean;
 }) {
   const containsTab = useMemo(() => hasAsciiTabLines(source), [source]);
 
@@ -101,12 +105,16 @@ export function ChordProView({
   // Same chord list either way, but taken from whichever renderer is showing.
   const uniqueChords = positional && showChordDiagrams ? positional.uniqueChords : parsedChords;
 
+  const sourceUrl = useMemo(() => {
+    const m = source.match(/\{\s*source\s*:\s*(https?:\/\/[^}\s]+)\s*\}/i);
+    return m ? m[1] : null;
+  }, [source]);
+
   const rootRef = useRef<HTMLDivElement | null>(null);
   // Widened to HTMLElement: positional sheets render into a <pre>, inline into a <div>.
   const sheetRef = useRef<HTMLElement | null>(null);
 
   // Click a chord in the sheet → scroll its palette diagram into view and pulse it.
-  // Queries [data-chord] from the root so both mobile and desktop palettes work.
   useEffect(() => {
     if (!sheetRef.current || !rootRef.current) return;
     const sheet = sheetRef.current;
@@ -123,9 +131,19 @@ export function ChordProView({
       el.setAttribute("tabindex", "0");
       const handler: EventListener = (ev) => {
         ev.preventDefault();
-        // On mobile the palette is the horizontal strip; on desktop it's the rail.
-        // querySelector finds whichever is visible first in DOM order.
-        const target = root.querySelector<HTMLElement>(`[data-chord="${CSS.escape(name)}"]`);
+        // Diagram containers carry data-chord-diagram; sheet chord tokens carry
+        // data-chord. Querying data-chord matched both, and the mobile palette is
+        // md:hidden yet still first in document order, so on desktop this used to
+        // resolve to a display:none node and scrollIntoView did nothing.
+        const candidates = root.querySelectorAll<HTMLElement>(
+          `[data-chord-diagram="${CSS.escape(name)}"]`
+        );
+        let target: HTMLElement | null = null;
+        for (const c of candidates) {
+          // offsetParent is null for a display:none element, which is exactly the
+          // hidden palette we must skip.
+          if (c.offsetParent !== null) { target = c; break; }
+        }
         if (!target) return;
         target.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
         target.classList.remove("chord-pulse");
@@ -150,41 +168,46 @@ export function ChordProView({
 
   return (
     <div ref={rootRef}>
-      {(keyLabel || sheetCapo) && (
-        // Sticky: this is the line you read before you start playing, and it
-        // used to scroll away while the chord diagrams above it stayed pinned.
-        <div
-          className="sticky top-0 z-20 mb-2 py-1 text-xs uppercase tracking-wide"
-          style={{ color: "var(--ink-faint)", backgroundColor: "var(--bg)" }}
-        >
-          {[
-            keyLabel ? `Key · ${keyLabel}` : null,
-            // The capo the sheet is written for. Previously never shown at all,
-            // so a player picked up the guitar in the wrong key.
-            sheetCapo ? `capo ${sheetCapo}` : null,
-            capo ? `capo ${capo.capoFret} → play in ${capo.shapeKey} shapes` : null,
-          ].filter(Boolean).join(" · ")}
-        </div>
-      )}
+      {/* One sticky context, so the key line and the strip cannot overlap. Two
+          independent `sticky top-0` elements put whichever had the lower z-index
+          underneath the other. */}
+      <div className="sticky top-0 z-20" style={{ backgroundColor: "var(--bg)" }}>
+        {(keyLabel || sheetCapo || sourceUrl) && (
+          <div className="mb-2 py-1 text-xs uppercase tracking-wide" style={{ color: "var(--ink-faint)" }}>
+            {[
+              keyLabel ? `Key · ${keyLabel}` : null,
+              sheetCapo ? `capo ${sheetCapo}` : null,
+              capo ? `capo ${capo.capoFret} → play in ${capo.shapeKey} shapes` : null,
+            ].filter(Boolean).join(" · ")}
+            {sourceUrl && (
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline ml-2"
+                style={{ color: "var(--ink-faint)" }}
+              >
+                source
+              </a>
+            )}
+          </div>
+        )}
+        {showChordDiagrams && uniqueChords.length > 0 && !chordStripActive && (
+          <div
+            className="md:hidden chord-palette flex gap-3 overflow-x-auto py-2 mb-3"
+            style={{ borderBottom: "1px solid var(--border)" }}
+            aria-label="Chord diagrams"
+          >
+            {uniqueChords.map(c => (
+              <div key={c} data-chord-diagram={c} className="shrink-0 transition-transform">
+                <ChordDiagram name={c} size="sm" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="md:flex md:flex-row md:gap-4">
         <div className="flex-1 min-w-0">
-          {showChordDiagrams && uniqueChords.length > 0 && (
-            /* Mobile: top-sticky horizontal scroll palette */
-            <div
-              className="md:hidden chord-palette sticky top-0 z-10 flex gap-3 overflow-x-auto py-2 mb-3"
-              style={{
-                borderBottom: "1px solid var(--border)",
-                backgroundColor: "var(--bg)",
-              }}
-              aria-label="Chord diagrams"
-            >
-              {uniqueChords.map(c => (
-                <div key={c} data-chord={c} className="shrink-0 transition-transform">
-                  <ChordDiagram name={c} size="sm" />
-                </div>
-              ))}
-            </div>
-          )}
           {positional ? (
             <pre ref={el => { sheetRef.current = el; }} className="chordpro-pre font-mono">
               {positional.lines.map((line, i) => (
@@ -192,6 +215,10 @@ export function ChordProView({
                   {line.segments.map((seg, j) =>
                     seg.isChord ? (
                       <span key={j} className="chord" role="presentation" data-chord={seg.text}>
+                        {seg.text}
+                      </span>
+                    ) : seg.isHeader ? (
+                      <span key={j} className="sheet-section">
                         {seg.text}
                       </span>
                     ) : (
@@ -220,7 +247,7 @@ export function ChordProView({
               aria-label="Chord diagrams"
             >
               {uniqueChords.map(c => (
-                <div key={c} data-chord={c}>
+                <div key={c} data-chord-diagram={c}>
                   <ChordDiagram name={c} size="sm" />
                 </div>
               ))}

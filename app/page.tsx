@@ -5,12 +5,16 @@ import { useNowPlaying } from "@/hooks/useNowPlaying";
 import { NowPlayingHeader } from "@/components/NowPlayingHeader";
 import { ConnectSpotify } from "@/components/ConnectSpotify";
 import { ChordProView } from "@/components/ChordProView";
+import { ChordStrip } from "@/components/ChordStrip";
 import { TabView } from "@/components/TabView";
 import { AutoScroller } from "@/components/AutoScroller";
 import { QuickAddForm } from "@/components/QuickAddForm";
 import { Editor } from "@/components/Editor";
 import { LibraryPicker } from "@/components/LibraryPicker";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { usePlaybackClock } from "@/hooks/usePlaybackClock";
+import { useSheetMap } from "@/hooks/useSheetMap";
+import { useCurrentLine } from "@/hooks/useCurrentLine";
 import { OverflowMenu } from "@/components/OverflowMenu";
 import { ShortcutsHelp } from "@/components/ShortcutsHelp";
 import type { LibraryEntry } from "@/lib/library/index";
@@ -246,6 +250,13 @@ export default function HomePage() {
     await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
   }
 
+  async function toggleChordStrip() {
+    if (!prefs) return;
+    const next = { ...prefs, chordStrip: !(prefs.chordStrip ?? false) };
+    setPrefs(next);
+    await fetch("/api/prefs", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
+  }
+
   async function setAutoScrollSpeed(speed: number) {
     if (!prefs) return;
     const next = { ...prefs, autoScrollSpeed: speed };
@@ -438,6 +449,43 @@ export default function HomePage() {
   // Off while a modal or the editor owns the keyboard.
   !showShortcuts && !showLibraryPicker && !editing);
 
+  const clock = usePlaybackClock({
+    trackId: np.data?.trackId ?? null,
+    progressMs: np.data?.progressMs ?? 0,
+    // No cast needed: NowPlaying already declares `sampleAgeMs?: number`
+    // (lib/spotify/now-playing-cache.ts).
+    sampleAgeMs: np.data?.sampleAgeMs ?? 0,
+    isPlaying: np.data?.isPlaying ?? false,
+    durationMs: np.data?.durationMs ?? 0,
+    speedMultiplier: prefs?.autoScrollSpeed ?? 1,
+  });
+
+  const { map: sheetMap, cues: chordCues } = useSheetMap({
+    // Any consumer being active is reason enough to keep the map current.
+    enabled: ((prefs?.autoScroll ?? false) || (prefs?.chordStrip ?? false)) && !editing,
+    containerRef: scrollRef,
+    // `splitView` and the content-loaded flag are part of the key because both
+    // change which element is the sheet. Without them, toggling split view swaps
+    // the sheet element with no rebuild.
+    rebuildKey: [
+      effectiveMatch?.id ?? "",
+      transposeOffset,
+      selectedVersionId ?? "",
+      splitView ? "split" : "single",
+      content !== null ? "loaded" : "empty",
+    ].join(":"),
+  });
+
+  useCurrentLine({
+    enabled: (prefs?.chordStrip ?? false) && !editing,
+    clock: np.data ? clock : null,
+    durationMs: np.data?.durationMs ?? 0,
+    isPlaying: np.data?.isPlaying ?? false,
+    map: sheetMap,
+  });
+
+  // Hooks must not be called conditionally, so the hooks above are called
+  // before these early returns rather than after.
   if (connected === false) return <ConnectSpotify />;
   if (connected === null) return <div className="p-8" style={{ color: "var(--ink-muted)" }}>Loading…</div>;
 
@@ -488,6 +536,14 @@ export default function HomePage() {
             })}
           </div>
         )}
+        <label className="flex items-center gap-2" style={{ color: "var(--ink-muted)" }}>
+          <input
+            type="checkbox"
+            checked={prefs?.chordStrip ?? false}
+            onChange={toggleChordStrip}
+          />
+          Chord strip
+        </label>
         {/* Sheet text size. Sized like the transpose buttons, which are the only
             other controls a player touches while holding the instrument. */}
         {prefs && (
@@ -660,6 +716,20 @@ export default function HomePage() {
           })}
         </div>
       )}
+      {prefs && (
+        <ChordStrip
+          enabled={(prefs.chordStrip ?? false) && !editing}
+          isChordSheet={
+            // !!chordEntry, not `!== null`: allMatches.find() yields undefined, not
+            // null, so `!== null` would be true for a missing entry.
+            effectiveMatch?.format === "chordpro" || (splitView && !!chordEntry)
+          }
+          clock={np.data ? clock : null}
+          durationMs={np.data?.durationMs ?? 0}
+          isPlaying={np.data?.isPlaying ?? false}
+          cues={chordCues}
+        />
+      )}
       <div ref={scrollRef} className="flex-1 overflow-auto">
         {editing && effectiveMatch ? (
           <Editor id={effectiveMatch.id} onClose={() => setEditing(false)} onSaved={() => setEditing(false)} />
@@ -671,9 +741,10 @@ export default function HomePage() {
             tabContent={tabContent}
             transposeOffset={transposeOffset}
             showChordDiagrams={prefs?.showChordDiagrams ?? true}
+            chordStripActive={prefs?.chordStrip ?? false}
           />
         ) : effectiveMatch && content !== null ? (
-          renderEntry(effectiveMatch, content, transposeOffset, prefs?.showChordDiagrams ?? true)
+          renderEntry(effectiveMatch, content, transposeOffset, prefs?.showChordDiagrams ?? true, prefs?.chordStrip ?? false)
         ) : effectiveTrack ? (
           <div>
             <QuickAddForm track={effectiveTrack} onCreated={() => { setDismissedTrackId(null); setMatchRefetch(n => n + 1); }} />
@@ -703,12 +774,10 @@ export default function HomePage() {
       {np.data && prefs && (
         <AutoScroller
           enabled={prefs.autoScroll && !editing && np.data.isPlaying}
-          progressMs={np.data.progressMs}
-          sampleAgeMs={(np.data as { sampleAgeMs?: number }).sampleAgeMs ?? 0}
-          isPlaying={np.data.isPlaying}
+          clock={clock}
           durationMs={np.data.durationMs}
-          speedMultiplier={prefs.autoScrollSpeed ?? 1}
           targetRef={scrollRef}
+          map={sheetMap}
         />
       )}
       {showShortcuts && <ShortcutsHelp onClose={() => setShowShortcuts(false)} />}
@@ -716,8 +785,15 @@ export default function HomePage() {
   );
 }
 
-function renderEntry(entry: LibraryEntry, content: string, transpose = 0, showChordDiagrams = true) {
-  if (entry.format === "chordpro") return <ChordProView source={content} transpose={transpose} showChordDiagrams={showChordDiagrams} />;
+function renderEntry(
+  entry: LibraryEntry,
+  content: string,
+  transpose = 0,
+  showChordDiagrams = true,
+  chordStripActive = false
+) {
+  if (entry.format === "chordpro")
+    return <ChordProView source={content} transpose={transpose} showChordDiagrams={showChordDiagrams} chordStripActive={chordStripActive} />;
   if (entry.format === "ascii-tab") return <TabView kind="ascii" text={content} />;
   return <TabView kind="guitar-pro" src={`/api/library/raw/${encodeURIComponent(entry.id)}`} />;
 }
@@ -729,13 +805,14 @@ type SplitViewProps = {
   tabContent: string | null;
   transposeOffset: number;
   showChordDiagrams: boolean;
+  chordStripActive: boolean;
 };
 
-function SplitView({ chordEntry, chordContent, tabEntry, tabContent, transposeOffset, showChordDiagrams }: SplitViewProps) {
+function SplitView({ chordEntry, chordContent, tabEntry, tabContent, transposeOffset, showChordDiagrams, chordStripActive }: SplitViewProps) {
   const loadingStyle = { color: "var(--ink-faint)", padding: "1rem" };
 
   const chordPane = chordContent !== null
-    ? <ChordProView source={chordContent} transpose={transposeOffset} showChordDiagrams={showChordDiagrams} />
+    ? <ChordProView source={chordContent} transpose={transposeOffset} showChordDiagrams={showChordDiagrams} chordStripActive={chordStripActive} />
     : <div style={loadingStyle}>Loading chords…</div>;
 
   const tabPane = tabEntry.format === "guitar-pro"

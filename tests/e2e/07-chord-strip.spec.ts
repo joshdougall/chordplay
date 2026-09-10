@@ -1,0 +1,300 @@
+import { test, expect, type Page } from "@playwright/test";
+import { seedAuthentication, setSessionCookie, FAKE_USER_ID } from "./helpers/session";
+import { resetLibrary, seedSheet } from "./helpers/library";
+
+const SHEET_ID = "chord-strip-test.pro";
+const TRACK_ID = "trk-strip-1";
+const DURATION_MS = 200_000;
+
+// A positional sheet: chords on their own line above the words, which is how 44
+// of the library's 47 sheets are written and the case the old row map missed.
+const SHEET_CONTENT = [
+  "{title: Strip Test}",
+  "{artist: E2E Band}",
+  `{spotify_track_id: ${TRACK_ID}}`,
+  "",
+  "[C]        [G]",
+  "When I find myself in times",
+  "[Am]       [F]",
+  "Mother Mary comes to me",
+  "[C]        [G]",
+  "Speaking words of wisdom",
+  "[Am]       [F]",
+  "Let it be, let it be",
+].join("\n");
+
+const ENTRY = {
+  id: SHEET_ID,
+  title: "Strip Test",
+  artist: "E2E Band",
+  format: "chordpro",
+  spotifyTrackId: TRACK_ID,
+  parseError: false,
+  songKey: "e2e-band||strip-test",
+};
+
+/** Mutable so a test can advance playback between reloads. */
+let progressMs = 0;
+let chordStrip = true;
+let autoScroll = false;
+
+function mockRoutes(page: Page) {
+  page.route("**/api/auth/status", route =>
+    route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ authenticated: true, userId: FAKE_USER_ID }),
+    })
+  );
+  page.route("**/api/now-playing", route =>
+    route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({
+        trackId: TRACK_ID, title: "Strip Test", artists: ["E2E Band"],
+        albumArt: null, progressMs, durationMs: DURATION_MS, isPlaying: true,
+      }),
+    })
+  );
+  page.route("**/api/library/match**", route =>
+    route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ match: ENTRY, confidence: "exact", allMatches: [ENTRY] }),
+    })
+  );
+  page.route(`**/api/library/${encodeURIComponent(SHEET_ID)}`, route => {
+    if (route.request().method() === "POST") return route.continue();
+    return route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ entry: ENTRY, content: SHEET_CONTENT }),
+    });
+  });
+  page.route("**/api/spotify/recently-played", route =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ tracks: [] }) })
+  );
+  page.route("**/api/prefs", route => {
+    if (route.request().method() === "PUT") return route.continue();
+    return route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({
+        autoScroll, autoScrollSpeed: 1, showChordDiagrams: true,
+        songPreferences: {}, trackOverrides: {}, songTranspose: {},
+        preferredVersion: {}, splitView: {}, fontScale: 1, chordStrip,
+      }),
+    });
+  });
+}
+
+test.describe("Chord strip", () => {
+  test.beforeEach(async ({ context, page }) => {
+    resetLibrary();
+    seedSheet(SHEET_ID, SHEET_CONTENT);
+    seedAuthentication();
+    await setSessionCookie(context);
+    progressMs = 0;
+    chordStrip = true;
+    autoScroll = false;
+    mockRoutes(page);
+  });
+
+  test("shows the strip with the pref on and hides it with the pref off", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".chord-strip")).toBeVisible();
+
+    chordStrip = false;
+    await page.reload();
+    await expect(page.locator(".chord-strip")).toHaveCount(0);
+  });
+
+  test("renders the sheet's chords in order", async ({ page }) => {
+    await page.goto("/");
+    const cues = page.locator(".chord-strip-cue");
+    await expect(cues).toHaveCount(8);
+    await expect(cues.nth(0)).toHaveText("C");
+    await expect(cues.nth(1)).toHaveText("G");
+    await expect(cues.nth(2)).toHaveText("Am");
+    await expect(cues.nth(3)).toHaveText("F");
+  });
+
+  test("marks exactly one chord as current", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator('.chord-strip-cue[data-state="current"]')).toHaveCount(1);
+  });
+
+  test("the marker advances as playback progresses", async ({ page }) => {
+    const currentIndex = () =>
+      page.locator(".chord-strip-cue").evaluateAll(els =>
+        els.findIndex(e => e.getAttribute("data-state") === "current")
+      );
+
+    await page.goto("/");
+    await expect(page.locator('.chord-strip-cue[data-state="current"]')).toHaveCount(1);
+    const early = await currentIndex();
+
+    // Past halfway: a later cue must be current.
+    progressMs = Math.floor(DURATION_MS * 0.7);
+    await page.reload();
+    await expect(page.locator('.chord-strip-cue[data-state="current"]')).toHaveCount(1);
+    const late = await currentIndex();
+
+    expect(early).toBe(0);
+    expect(late).toBeGreaterThan(early);
+  });
+
+  test("highlights a lyric line, not the chord row above it", async ({ page }) => {
+    progressMs = Math.floor(DURATION_MS * 0.3);
+    await page.goto("/");
+    const marked = page.locator(".chord-line-current");
+    await expect(marked).toHaveCount(1);
+    // A positional unit's highlight belongs on the words.
+    const text = (await marked.textContent()) ?? "";
+    expect(text.trim().length).toBeGreaterThan(0);
+    await expect(marked.locator(".chord")).toHaveCount(0);
+  });
+
+  test("the band has a fixed height at each breakpoint, and keeps it across a track change", async ({ page }) => {
+    // Assert the actual value, not before === after. The strip retains the
+    // outgoing song's cues across a track change on purpose (useSheetMap's
+    // lastCuesRef), so the mobile diagram never disappears mid-test and a
+    // self-comparison would pass even against a wrapper with no fixed height.
+    // Measure the WRAPPER, not `.chord-strip`: the inner band is a fixed
+    // height by construction, so asserting on it alone would pass even while
+    // the wrapper (which also holds the mobile diagram) jumped around.
+    const wrapper = () => page.locator(".chord-strip").locator("xpath=..");
+
+    await page.setViewportSize({ width: 390, height: 844 }); // phone: diagram visible
+    await page.goto("/");
+    await expect(page.locator(".chord-strip")).toBeVisible();
+    expect((await wrapper().boundingBox())?.height).toBe(124);
+
+    // Content is nulled on a track change; the band must not collapse.
+    await page.route("**/api/now-playing", route =>
+      route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({
+          trackId: "trk-strip-2", title: "Other", artists: ["E2E Band"],
+          albumArt: null, progressMs: 0, durationMs: DURATION_MS, isPlaying: true,
+        }),
+      })
+    );
+    await page.waitForTimeout(3_000); // one poll cycle (2000ms), with margin
+    expect((await wrapper().boundingBox())?.height).toBe(124);
+
+    await page.setViewportSize({ width: 1280, height: 900 }); // desktop: diagram is md:hidden
+    expect((await wrapper().boundingBox())?.height).toBe(56);
+  });
+
+  test("a font-scale change keeps the highlight on a real line", async ({ page }) => {
+    progressMs = Math.floor(DURATION_MS * 0.5);
+    await page.goto("/");
+    await expect(page.locator(".chord-line-current")).toHaveCount(1);
+
+    await page.getByRole("button", { name: "Larger sheet text" }).click();
+    await page.waitForTimeout(400); // debounce + rebuild
+    await expect(page.locator(".chord-line-current")).toHaveCount(1);
+  });
+
+  test("auto-scroll tracks playback position", async ({ page }) => {
+    // Long enough that the sheet overflows the viewport regardless of window
+    // size, so there is scroll distance for the assertion to be meaningful.
+    const lines: string[] = [
+      "{title: Strip Test}",
+      "{artist: E2E Band}",
+      `{spotify_track_id: ${TRACK_ID}}`,
+      "",
+    ];
+    for (let i = 0; i < 40; i++) {
+      lines.push("[C]        [G]");
+      lines.push(`Verse line number ${i} filling space so the sheet scrolls`);
+    }
+    const LONG_CONTENT = lines.join("\n");
+
+    seedSheet(SHEET_ID, LONG_CONTENT);
+    await page.route(`**/api/library/${encodeURIComponent(SHEET_ID)}`, route => {
+      if (route.request().method() === "POST") return route.continue();
+      return route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ entry: ENTRY, content: LONG_CONTENT }),
+      });
+    });
+
+    autoScroll = true;
+    progressMs = Math.floor(DURATION_MS * 0.6); // well into the track
+    await page.goto("/");
+
+    const line = page.locator(".chord-line-current");
+    await expect(line).toHaveCount(1);
+    // The scroll container is a `div`, not the identically-classed `<main>`
+    // in app/layout.tsx that wraps it.
+    const container = page.locator("div.flex-1.overflow-auto");
+
+    // Give the AutoScroller RAF loop a few frames to settle.
+    await page.waitForTimeout(500);
+
+    const scrollTop = await container.evaluate(el => el.scrollTop);
+    expect(scrollTop).toBeGreaterThan(0);
+
+    const lineBox = await line.boundingBox();
+    const containerBox = await container.boundingBox();
+    expect(lineBox).not.toBeNull();
+    expect(containerBox).not.toBeNull();
+
+    // The current line's top should fall inside the container's visible band,
+    // with a few pixels of slop for the interpolation and any settling.
+    // boundingBox() returns {x, y, width, height}: y is the top edge.
+    const SLOP = 6;
+    expect(lineBox!.y).toBeGreaterThanOrEqual(containerBox!.y - SLOP);
+    expect(lineBox!.y).toBeLessThanOrEqual(containerBox!.y + containerBox!.height + SLOP);
+  });
+
+  test("shows a capo written in a spelling the old parser missed", async ({ page }) => {
+    // "Capo on 2nd fret" parsed as null before Task 13. Not {capo: 2}, which
+    // always worked and would make this test vacuous.
+    const CAPO_SHEET = [
+      "{title: Capo Test}",
+      "{artist: E2E Band}",
+      `{spotify_track_id: ${TRACK_ID}}`,
+      "",
+      "Capo on 2nd fret",
+      "",
+      "[C]        [G]",
+      "When I find myself in times",
+    ].join("\n");
+
+    seedSheet(SHEET_ID, CAPO_SHEET);
+    await page.route(`**/api/library/${encodeURIComponent(SHEET_ID)}`, route => {
+      if (route.request().method() === "POST") return route.continue();
+      return route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ entry: ENTRY, content: CAPO_SHEET }),
+      });
+    });
+
+    await page.goto("/");
+    await expect(page.getByText(/capo 2/i)).toBeVisible();
+  });
+
+  test("keeps the source link on a saved sheet", async ({ page }) => {
+    const SOURCED = [
+      "{title: Source Test}",
+      "{artist: E2E Band}",
+      `{spotify_track_id: ${TRACK_ID}}`,
+      "{source: https://example.com/tab/12345}",
+      "",
+      "[C]        [G]",
+      "When I find myself in times",
+    ].join("\n");
+
+    seedSheet(SHEET_ID, SOURCED);
+    await page.route(`**/api/library/${encodeURIComponent(SHEET_ID)}`, route => {
+      if (route.request().method() === "POST") return route.continue();
+      return route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ entry: ENTRY, content: SOURCED }),
+      });
+    });
+
+    await page.goto("/");
+    const link = page.getByRole("link", { name: "source" });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute("href", "https://example.com/tab/12345");
+  });
+});
