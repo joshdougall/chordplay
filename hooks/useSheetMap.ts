@@ -33,6 +33,10 @@ export function useSheetMap({
   });
   // Retained so the outgoing song's cues survive the load gap: page.tsx nulls
   // `content` on every track change, and blanking the strip would reflow the band.
+  // Keyed on `built.map === null` (no sheet found at all), NOT on an empty cue
+  // list: a mounted chordpro sheet that genuinely has no chord tokens also
+  // yields zero cues, and treating that the same as the load gap would leave a
+  // previous song's chords on screen indefinitely under a moving marker.
   const lastCuesRef = useRef<ChordCue[]>([]);
 
   useEffect(() => {
@@ -43,10 +47,10 @@ export function useSheetMap({
 
     const rebuild = () => {
       const built = buildLiveSheetMap(container);
-      if (built.cues.length > 0) lastCuesRef.current = built.cues;
+      if (built.map !== null) lastCuesRef.current = built.cues;
       setState({
         map: built.map,
-        cues: built.cues.length > 0 ? built.cues : lastCuesRef.current,
+        cues: built.map !== null ? built.cues : lastCuesRef.current,
       });
     };
 
@@ -78,7 +82,9 @@ export function useSheetMap({
       // filter them out here instead.
       const allDiagramNoise = records.every(r => {
         const t = r.target;
-        return t instanceof Element && t.closest("[data-chord-diagram], .chord-strip") !== null;
+        // The strip itself mounts outside this container (app/page.tsx), so it
+        // can never appear in these records; only diagram containers can.
+        return t instanceof Element && t.closest("[data-chord-diagram]") !== null;
       });
       if (allDiagramNoise) return;
       schedule();
