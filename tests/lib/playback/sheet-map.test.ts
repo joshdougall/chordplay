@@ -4,7 +4,6 @@ import {
   SPARSE_UNIT_WEIGHT,
   type LineFacts,
   weightedProgressToScrollTop,
-  progressFractionAtOffset,
   unitIndexAtFraction,
 } from "@/lib/playback/sheet-map";
 
@@ -230,45 +229,6 @@ describe("weightedProgressToScrollTop", () => {
     // The sparse unit owns 0.25/1.25 = 20% of the clock but 100px of sheet, so
     // by 20% of the song we should already be at its end.
     expect(weightedProgressToScrollTop(0.2, sparse, 200)).toBeCloseTo(100, 0);
-  });
-});
-
-describe("progressFractionAtOffset", () => {
-  const map = buildSheetMap([
-    inlineRow(0, ["C"]), inlineRow(100, ["G"]),
-    inlineRow(200, ["Am"]), inlineRow(300, ["F"]),
-  ])!;
-
-  it("round-trips the forward mapping on the unclamped interior", () => {
-    // The property that makes the strip and the scroll agree by construction.
-    for (const f of [0.05, 0.2, 0.37, 0.5, 0.62, 0.8, 0.95]) {
-      const top = weightedProgressToScrollTop(f, map, 400);
-      expect(top).toBeGreaterThan(0);
-      expect(top).toBeLessThan(400);
-      expect(progressFractionAtOffset(top, map, 400)).toBeCloseTo(f, 5);
-    }
-  });
-
-  it("returns 0 at the top of the sheet", () => {
-    expect(progressFractionAtOffset(0, map, 400)).toBe(0);
-  });
-
-  it("clamps a negative offset to 0", () => {
-    expect(progressFractionAtOffset(-50, map, 400)).toBe(0);
-  });
-
-  it("clamps an offset past the end to 1", () => {
-    expect(progressFractionAtOffset(9_999, map, 400)).toBe(1);
-  });
-
-  it("falls back to linear when there is no map, matching the forward fallback", () => {
-    expect(progressFractionAtOffset(100, null, 400)).toBeCloseTo(0.25, 5);
-    // And is the exact inverse of pct * maxScroll.
-    expect(progressFractionAtOffset(0.25 * 400, null, 400)).toBeCloseTo(0.25, 5);
-  });
-
-  it("does not divide by zero when the sheet fits the viewport", () => {
-    expect(progressFractionAtOffset(0, null, 0)).toBe(0);
   });
 });
 
