@@ -36,6 +36,7 @@ const ENTRY = {
 /** Mutable so a test can advance playback between reloads. */
 let progressMs = 0;
 let chordStrip = true;
+let autoScroll = false;
 
 function mockRoutes(page: Page) {
   page.route("**/api/auth/status", route =>
@@ -74,7 +75,7 @@ function mockRoutes(page: Page) {
     return route.fulfill({
       status: 200, contentType: "application/json",
       body: JSON.stringify({
-        autoScroll: false, autoScrollSpeed: 1, showChordDiagrams: true,
+        autoScroll, autoScrollSpeed: 1, showChordDiagrams: true,
         songPreferences: {}, trackOverrides: {}, songTranspose: {},
         preferredVersion: {}, splitView: {}, fontScale: 1, chordStrip,
       }),
@@ -90,6 +91,7 @@ test.describe("Chord strip", () => {
     await setSessionCookie(context);
     progressMs = 0;
     chordStrip = true;
+    autoScroll = false;
     mockRoutes(page);
   });
 
@@ -188,6 +190,59 @@ test.describe("Chord strip", () => {
     await page.getByRole("button", { name: "Larger sheet text" }).click();
     await page.waitForTimeout(400); // debounce + rebuild
     await expect(page.locator(".chord-line-current")).toHaveCount(1);
+  });
+
+  test("auto-scroll tracks playback position", async ({ page }) => {
+    // Long enough that the sheet overflows the viewport regardless of window
+    // size, so there is scroll distance for the assertion to be meaningful.
+    const lines: string[] = [
+      "{title: Strip Test}",
+      "{artist: E2E Band}",
+      `{spotify_track_id: ${TRACK_ID}}`,
+      "",
+    ];
+    for (let i = 0; i < 40; i++) {
+      lines.push("[C]        [G]");
+      lines.push(`Verse line number ${i} filling space so the sheet scrolls`);
+    }
+    const LONG_CONTENT = lines.join("\n");
+
+    seedSheet(SHEET_ID, LONG_CONTENT);
+    await page.route(`**/api/library/${encodeURIComponent(SHEET_ID)}`, route => {
+      if (route.request().method() === "POST") return route.continue();
+      return route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ entry: ENTRY, content: LONG_CONTENT }),
+      });
+    });
+
+    autoScroll = true;
+    progressMs = Math.floor(DURATION_MS * 0.6); // well into the track
+    await page.goto("/");
+
+    const line = page.locator(".chord-line-current");
+    await expect(line).toHaveCount(1);
+    // The scroll container is a `div`, not the identically-classed `<main>`
+    // in app/layout.tsx that wraps it.
+    const container = page.locator("div.flex-1.overflow-auto");
+
+    // Give the AutoScroller RAF loop a few frames to settle.
+    await page.waitForTimeout(500);
+
+    const scrollTop = await container.evaluate(el => el.scrollTop);
+    expect(scrollTop).toBeGreaterThan(0);
+
+    const lineBox = await line.boundingBox();
+    const containerBox = await container.boundingBox();
+    expect(lineBox).not.toBeNull();
+    expect(containerBox).not.toBeNull();
+
+    // The current line's top should fall inside the container's visible band,
+    // with a few pixels of slop for the interpolation and any settling.
+    // boundingBox() returns {x, y, width, height}: y is the top edge.
+    const SLOP = 6;
+    expect(lineBox!.y).toBeGreaterThanOrEqual(containerBox!.y - SLOP);
+    expect(lineBox!.y).toBeLessThanOrEqual(containerBox!.y + containerBox!.height + SLOP);
   });
 
   test("shows a capo written in a spelling the old parser missed", async ({ page }) => {
