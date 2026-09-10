@@ -11,12 +11,12 @@ import {
 export type LiveSheetMap = SheetMap & { unitElements: HTMLElement[] };
 
 /**
- * The element holding the rendered sheet, which is NOT the scroll container.
+ * Locate the rendered sheet within the scroll container. Either the inline
+ * formatter's `.chordpro` or the positional renderer's `.chordpro-pre`.
  *
- * Scoping to this matters for the MutationObserver: chord diagrams render
- * asynchronously and replace their own children, so observing the scroll
- * container fires on every diagram paint. Diagram containers are siblings of
- * the sheet, so this excludes them.
+ * NOT used to scope the rebuild observer — see `hooks/useSheetMap.ts`, which
+ * observes the container instead and filters out diagram-paint noise, because
+ * a sheet-scoped observer misses the sheet's own (re)mount.
  */
 export function findSheetElement(container: HTMLElement): HTMLElement | null {
   return container.querySelector<HTMLElement>(".chordpro, .chordpro-pre");
