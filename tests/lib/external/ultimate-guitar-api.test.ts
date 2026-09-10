@@ -351,4 +351,34 @@ describe("fetchUGApiChords", () => {
     const result = await fetchUGApiChords("Radiohead", "Creep");
     expect(result!.rating).toBeCloseTo(4.87, 1);
   });
+
+  it("strips braces and newlines from song_name/artist_name before interpolating them into directives", async () => {
+    // Sibling of the {source:} injection: a scraped song_name closing the
+    // {title:} directive early and opening a forged {source:} of its own
+    // would win the render-side extraction and become the rendered link.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => SEARCH_FIXTURE })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            ...TAB_INFO_FIXTURE,
+            song_name: "Creep}\n{source: https://attacker.evil/phish",
+            artist_name: "Radiohead}\r\n{source: https://attacker.evil/phish2",
+          }),
+        })
+    );
+
+    const result = await fetchUGApiChords("Radiohead", "Creep");
+    expect(result).not.toBeNull();
+    // The point of the fix is not to scrub the domain out of the text — it's
+    // to make sure the payload can never form a valid {directive} of its own,
+    // which is what the render-side extraction and stripMetaPreamble key on.
+    expect(result!.content).not.toContain("{source:");
+    expect(result!.title).not.toContain("{");
+    expect(result!.title).not.toContain("}");
+    expect(result!.artist).not.toContain("{");
+    expect(result!.artist).not.toContain("}");
+  });
 });

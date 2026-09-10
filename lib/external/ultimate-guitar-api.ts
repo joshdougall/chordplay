@@ -72,6 +72,12 @@ export function ugContentToChordPro(content: string): string {
     .trim();
 }
 
+/** Strip characters that could close a `{...}` directive early or splice in a
+ *  new line, from a scraped value bound for a ChordPro directive. */
+function stripDirectiveInjection(s: string): string {
+  return s.replace(/[{}\r\n]/g, "");
+}
+
 // --- Response shapes (minimal) ------------------------------------------------
 
 interface UGTab {
@@ -214,8 +220,14 @@ export async function fetchUGApiChords(
     return null;
   }
 
-  const resolvedTitle = tabInfo.song_name ?? best.song_name ?? title;
-  const resolvedArtist = tabInfo.artist_name ?? best.artist_name ?? artist;
+  // Sibling of the `{source: ...}` injection SAFE_SOURCE_URL guards against in
+  // chords.ts: these values are UG-scraped and spliced straight into ChordPro
+  // directives below. An untrusted song_name/artist_name containing a brace or
+  // a newline could close the directive early and open a forged one (e.g. its
+  // own `{source: https://evil}` that wins the render-side extraction), so
+  // strip the characters that make that possible before interpolating.
+  const resolvedTitle = stripDirectiveInjection(tabInfo.song_name ?? best.song_name ?? title);
+  const resolvedArtist = stripDirectiveInjection(tabInfo.artist_name ?? best.artist_name ?? artist);
   const rating = tabInfo.rating ?? best.rating;
   const sourceUrl =
     tabInfo.url_web ??
