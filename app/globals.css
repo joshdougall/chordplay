@@ -120,6 +120,12 @@ body {
   font-weight: 600;
   cursor: pointer;
 }
+/* Section headers ("Verse 1", "Chorus") in a positional sheet: same size and
+   spacing as surrounding text, just muted, since they carry no weight on the
+   playback clock (see buildSheetMap). */
+.sheet-section {
+  color: var(--ink-muted);
+}
 
 /* User-adjustable sheet size. Inline sheets scale too. */
 .chordpro {

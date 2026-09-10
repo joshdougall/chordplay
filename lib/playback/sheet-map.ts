@@ -23,6 +23,9 @@ export type LineFacts = {
   /** Horizontal offset of each chord, so intra-line order survives. */
   chordLefts: number[];
   hasLyricText: boolean;
+  /** A bare positional-sheet section header ("Verse 1"). Weighted 0: it reads
+   *  like lyric text (no chords, non-blank) but carries no playback time. */
+  isSectionHeader: boolean;
 };
 
 export type SheetMap = {
@@ -49,6 +52,24 @@ export type SheetMap = {
  * one, because such a line reports chords AND lyric text and so never triggers
  * pairing. That is why no renderer flag is needed.
  *
+ * Weight table:
+ *
+ * | Unit contains                | Weight              | Rationale                    |
+ * |-------------------------------|---------------------|-------------------------------|
+ * | Chords and lyric text         | 1.0                 | A sung line, the baseline     |
+ * | Chords, no lyric text         | SPARSE_UNIT_WEIGHT  | Instrumental passage          |
+ * | Lyric text, no chords         | 1.0                 | Sung continuation             |
+ * | Section header (no chords)    | 0                   | Markup, not music             |
+ * | Neither (blank)                | 0                   | Layout, not music             |
+ *
+ * A section header line ("Verse 1") looks like plain lyric text once its
+ * brackets are shed — no chords, non-blank — so without the explicit
+ * `isSectionHeader` flag it would weight 1.0 the same as a sung line. On a
+ * typical sheet (~8 headers against ~40 sung lines) that ate roughly a sixth
+ * of the clock. A header must also never be treated as the LYRIC half of a
+ * pairing (a preceding sparse chord line followed by a header would otherwise
+ * pair with it and inherit its position), so pairing explicitly excludes it.
+ *
  * Returns null when there is nothing to weight, which makes every consumer fall
  * back to linear positioning.
  */
@@ -64,8 +85,16 @@ export function buildSheetMap(lines: LineFacts[]): SheetMap | null {
     const line = lines[i];
     const isChordOnly = line.chordCount > 0 && !line.hasLyricText;
     const next = i + 1 < lines.length ? lines[i + 1] : null;
+    // A section header must never be treated as the lyric half of a pairing:
+    // it has no chords and reports lyric text (its own heading), so without
+    // this exclusion a preceding sparse chord line would pair with it and
+    // the highlight would land on a header instead of the words.
     const pairs =
-      isChordOnly && next !== null && next.chordCount === 0 && next.hasLyricText;
+      isChordOnly &&
+      next !== null &&
+      next.chordCount === 0 &&
+      next.hasLyricText &&
+      !next.isSectionHeader;
 
     let weight: number;
     let highlightLine: number;
@@ -78,7 +107,8 @@ export function buildSheetMap(lines: LineFacts[]): SheetMap | null {
     } else {
       highlightLine = i;
       consumed = 1;
-      if (line.chordCount > 0 && line.hasLyricText) weight = 1.0;
+      if (line.isSectionHeader) weight = 0; // Section header. Markup, not music.
+      else if (line.chordCount > 0 && line.hasLyricText) weight = 1.0;
       else if (line.chordCount > 0) weight = SPARSE_UNIT_WEIGHT;
       else if (line.hasLyricText) weight = 1.0;
       else weight = 0; // Blank line. Layout, not music.

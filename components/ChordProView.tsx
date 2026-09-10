@@ -218,6 +218,10 @@ export function ChordProView({
                       <span key={j} className="chord" role="presentation" data-chord={seg.text}>
                         {seg.text}
                       </span>
+                    ) : seg.isHeader ? (
+                      <span key={j} className="sheet-section">
+                        {seg.text}
+                      </span>
                     ) : (
                       seg.text
                     )

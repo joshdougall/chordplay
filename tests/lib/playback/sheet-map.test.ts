@@ -16,12 +16,16 @@ function chordLine(top: number, names: string[], lefts?: number[]): LineFacts {
     chordNames: names,
     chordLefts: lefts ?? names.map((_, i) => i * 40),
     hasLyricText: false,
+    isSectionHeader: false,
   };
 }
 
 /** A line with words and no chords: a positional sheet's lyric row. */
 function lyricLine(top: number): LineFacts {
-  return { top, chordCount: 0, chordNames: [], chordLefts: [], hasLyricText: true };
+  return {
+    top, chordCount: 0, chordNames: [], chordLefts: [], hasLyricText: true,
+    isSectionHeader: false,
+  };
 }
 
 /** A line carrying both: an inline renderer's .row. */
@@ -32,11 +36,24 @@ function inlineRow(top: number, names: string[]): LineFacts {
     chordNames: names,
     chordLefts: names.map((_, i) => i * 40),
     hasLyricText: true,
+    isSectionHeader: false,
   };
 }
 
 function blankLine(top: number): LineFacts {
-  return { top, chordCount: 0, chordNames: [], chordLefts: [], hasLyricText: false };
+  return {
+    top, chordCount: 0, chordNames: [], chordLefts: [], hasLyricText: false,
+    isSectionHeader: false,
+  };
+}
+
+/** A bare positional-sheet section header ("Verse 1"): reads like lyric text
+ *  (no chords, non-blank) but must weight 0. */
+function sectionHeaderLine(top: number): LineFacts {
+  return {
+    top, chordCount: 0, chordNames: [], chordLefts: [], hasLyricText: true,
+    isSectionHeader: true,
+  };
 }
 
 describe("buildSheetMap", () => {
@@ -130,6 +147,55 @@ describe("buildSheetMap", () => {
     const map = buildSheetMap([
       chordLine(0, ["C"]), lyricLine(20),
       blankLine(40),
+      chordLine(60, ["G"]), lyricLine(80),
+    ])!;
+    for (let i = 1; i < map.unitTops.length; i++) {
+      expect(map.unitTops[i]).toBeGreaterThan(map.unitTops[i - 1]);
+    }
+  });
+
+  it("drops a section header line entirely, like a blank line", () => {
+    // A header reads exactly like a lyric line (no chords, non-blank), so
+    // without the isSectionHeader flag this would weight 1.0.
+    const map = buildSheetMap([
+      sectionHeaderLine(0),
+      lyricLine(20),
+    ])!;
+    expect(map.totalWeight).toBe(1);
+    expect(map.unitTops).toEqual([20]);
+  });
+
+  it("does not pair a chord line with a following section header", () => {
+    // A sparse chord line followed by a header must not pick up the header
+    // as its "lyric" line and inherit the header's position/weight.
+    const map = buildSheetMap([
+      chordLine(0, ["C"]),
+      sectionHeaderLine(20),
+      lyricLine(40),
+    ])!;
+    expect(map.unitTops).toEqual([0, 40]);
+    expect(map.totalWeight).toBe(SPARSE_UNIT_WEIGHT + 1);
+    expect(map.unitLineIndex).toEqual([0, 2]);
+  });
+
+  it("totals only the sung weight on a sheet mixing headers and verses", () => {
+    // 3 headers (dropped) + 3 sung pairs (chord + lyric, 1.0 each).
+    const lines: LineFacts[] = [];
+    let top = 0;
+    for (let i = 0; i < 3; i++) {
+      lines.push(sectionHeaderLine(top)); top += 20;
+      lines.push(chordLine(top, ["C", "G"])); top += 20;
+      lines.push(lyricLine(top)); top += 20;
+    }
+    const map = buildSheetMap(lines)!;
+    expect(map.totalWeight).toBe(3);
+    expect(map.unitTops).toHaveLength(3);
+  });
+
+  it("keeps unitTops monotonic across a dropped header", () => {
+    const map = buildSheetMap([
+      chordLine(0, ["C"]), lyricLine(20),
+      sectionHeaderLine(40),
       chordLine(60, ["G"]), lyricLine(80),
     ])!;
     for (let i = 1; i < map.unitTops.length; i++) {

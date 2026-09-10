@@ -13,10 +13,14 @@ function chordLine(top: number, names: string[], lefts?: number[]): LineFacts {
     chordNames: names,
     chordLefts: lefts ?? names.map((_, i) => i * 40),
     hasLyricText: false,
+    isSectionHeader: false,
   };
 }
 function lyricLine(top: number): LineFacts {
-  return { top, chordCount: 0, chordNames: [], chordLefts: [], hasLyricText: true };
+  return {
+    top, chordCount: 0, chordNames: [], chordLefts: [], hasLyricText: true,
+    isSectionHeader: false,
+  };
 }
 function inlineRow(top: number, names: string[]): LineFacts {
   return {
@@ -25,6 +29,7 @@ function inlineRow(top: number, names: string[]): LineFacts {
     chordNames: names,
     chordLefts: names.map((_, i) => i * 40),
     hasLyricText: true,
+    isSectionHeader: false,
   };
 }
 

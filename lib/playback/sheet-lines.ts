@@ -73,6 +73,10 @@ export function readSheetLines(
     }
 
     const hasLyricText = remainder.trim().length > 0;
+    // Positional-sheet section headers ("Verse 1") render as a `.sheet-section`
+    // span; the line element either IS that span or contains it.
+    const isSectionHeader =
+      el.matches(".sheet-section") || el.querySelector(".sheet-section") !== null;
 
     facts.push({
       top: el.getBoundingClientRect().top - frameTop,
@@ -80,6 +84,7 @@ export function readSheetLines(
       chordNames,
       chordLefts,
       hasLyricText,
+      isSectionHeader,
     });
     elements.push(el);
   }

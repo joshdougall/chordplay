@@ -12,7 +12,15 @@ function transposeChord(name: string, semitones: number): string {
   }
 }
 
-export type Segment = { text: string; isChord: boolean };
+export type Segment = {
+  text: string;
+  isChord: boolean;
+  /** True only for the bare bracketed section-header line ("[Verse 1]") with
+   *  its brackets shed. Lets downstream consumers (the renderer's
+   *  `sheet-section` class, and sheet-map's zero-weighting) identify a header
+   *  without re-deriving the bracket shape from rendered text. */
+  isHeader?: boolean;
+};
 export type PositionalLine = { segments: Segment[] };
 
 /** Shape test only: a line of nothing but bracketed tokens and whitespace. */
@@ -89,8 +97,11 @@ export function renderPositional(
     if (!isChordOnlyLine(raw) || raw.trim() === "") {
       // Section headers keep their position but shed their brackets, which are
       // markup rather than something to read.
-      const shown = /^\s*\[[^\]]+\]\s*$/.test(raw) ? raw.replace(/[\[\]]/g, "") : raw;
-      lines.push({ segments: [{ text: shown, isChord: false }] });
+      const isHeader = /^\s*\[[^\]]+\]\s*$/.test(raw);
+      const shown = isHeader ? raw.replace(/[\[\]]/g, "") : raw;
+      const segment: Segment = { text: shown, isChord: false };
+      if (isHeader) segment.isHeader = true;
+      lines.push({ segments: [segment] });
       continue;
     }
 
