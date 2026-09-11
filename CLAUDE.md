@@ -77,7 +77,7 @@ All under `/api/*`; `middleware.ts` stamps an `x-request-id` on each. Route hand
 
 ## Deployment
 
-Docker image built by `.forgejo/workflows/build.yml` on tag `v*` / `main` push, pushed to `forgejo.dougall.ca` (and GHCR public mirror per release). Runs on a homelab rpi5 (Ansible role `homelab-infra/ansible/roles/chords/`, Traefik route `chords.dougall.ca`, LAN-only). `better-sqlite3` and rollup are native/platform-specific — a `node_modules` from one OS/arch won't run on another; reinstall after moving machines.
+Docker image built by `.github/workflows/build.yml` (test → build → release) on tag `v*` / `main` push, pushed multi-arch (`linux/amd64`, `linux/arm64`) to `ghcr.io/joshdougall/chordplay`. Tags are bare semver (`1.1.0`), not `v`-prefixed, because `docker/metadata-action` uses `type=semver,pattern={{version}}`. The repo is public, so hosts pull without credentials. Runs on a homelab rpi5 (Ansible role `homelab-infra/ansible/roles/chords/`, Traefik route `chords.dougall.ca`, LAN-only). Deploying is a one-line bump of `chords_version` in that role's `defaults/main.yml`; it is pinned to an explicit tag on purpose, never `:latest`. `better-sqlite3` and rollup are native/platform-specific — a `node_modules` from one OS/arch won't run on another; reinstall after moving machines.
 
 ## Project state
 
