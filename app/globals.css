@@ -151,6 +151,13 @@ body {
   display: flex;
   align-items: center;
 }
+/* A chord tapped in the sheet, rather than the one currently playing. Marked
+   so the two are never confused while the preview is up. */
+.chord-strip-diagram[data-preview="true"] {
+  outline: 1px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 6px;
+}
 
 /* Chord strip: the song's chord sequence, sliding, current chord centred.
    Fixed height so the band never reflows the page between tracks. */

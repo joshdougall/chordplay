@@ -10,6 +10,7 @@ import { isPositionalSheet, renderPositional } from "@/lib/chordpro/positional";
 import { stripMetaPreamble } from "@/lib/chordpro/strip-meta";
 import { isChordName, extractUniqueChords } from "@/lib/chordpro/extract-chords";
 import { sanitizeChordHtml } from "@/lib/chordpro/sanitize";
+import { requestChordPreview } from "@/lib/chord-preview";
 
 const CHROMATIC_KEYS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -144,7 +145,15 @@ export function ChordProView({
           // hidden palette we must skip.
           if (c.offsetParent !== null) { target = c; break; }
         }
-        if (!target) return;
+        if (!target) {
+          // Nothing visible to scroll to. That is the phone-with-strip case:
+          // the strip owns the mobile band so the palette is not rendered, and
+          // the strip's own diagram lives outside this component's root. Ask
+          // the strip to show this chord instead of doing nothing, which is
+          // what made these tokens a dead affordance.
+          requestChordPreview(name);
+          return;
+        }
         target.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
         target.classList.remove("chord-pulse");
         // Force reflow so the animation restarts when clicking the same chord twice.

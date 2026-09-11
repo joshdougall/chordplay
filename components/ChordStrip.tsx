@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PlaybackClock } from "@/hooks/usePlaybackClock";
 import { cueIndexAtFraction, type ChordCue } from "@/lib/playback/sheet-map";
 import { ChordDiagram } from "@/components/ChordDiagram";
+import { CHORD_PREVIEW_EVENT, CHORD_PREVIEW_MS, readChordPreview } from "@/lib/chord-preview";
 
 type Props = {
   enabled: boolean;
@@ -28,6 +29,10 @@ export function ChordStrip({
   cues,
 }: Props) {
   const [currentIdx, setCurrentIdx] = useState(0);
+  // A chord tapped in the sheet, shown instead of the playing chord for a few
+  // seconds. Carries a timestamp so tapping the same chord twice is a new
+  // object and restarts the timer below.
+  const [preview, setPreview] = useState<{ name: string; at: number } | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const cueRefs = useRef<HTMLSpanElement[]>([]);
   const rafRef = useRef<number | null>(null);
@@ -36,6 +41,26 @@ export function ChordStrip({
   // stale elements behind for the slide to measure. In a layout effect rather
   // than during render, since ref callbacks have already run by then.
   useLayoutEffect(() => { cueRefs.current.length = cues.length; }, [cues]);
+
+  // The sheet cannot reach this component through the DOM (it renders inside
+  // the scroll container, this renders above it), so it asks via an event.
+  useEffect(() => {
+    if (!enabled || !isChordSheet) return;
+    const onPreview = (event: Event) => {
+      const name = readChordPreview(event);
+      if (name) setPreview({ name, at: Date.now() });
+    };
+    window.addEventListener(CHORD_PREVIEW_EVENT, onPreview);
+    return () => window.removeEventListener(CHORD_PREVIEW_EVENT, onPreview);
+  }, [enabled, isChordSheet]);
+
+  // Revert to the playing chord. Keyed off the whole object so a repeat tap
+  // restarts the countdown rather than letting the first one expire.
+  useEffect(() => {
+    if (preview === null) return;
+    const t = window.setTimeout(() => setPreview(null), CHORD_PREVIEW_MS);
+    return () => window.clearTimeout(t);
+  }, [preview]);
 
   // Slide the track so the current cue sits on the centre rail.
   useEffect(() => {
@@ -69,17 +94,25 @@ export function ChordStrip({
 
   const showMarker = clock !== null && durationMs > 0 && cues.length > 0;
   const currentName = showMarker ? cues[currentIdx]?.name : undefined;
+  // A tapped chord wins over the playing one, and can show even when nothing
+  // is playing, which is exactly when someone is looking a shape up.
+  const diagramName = preview?.name ?? currentName;
 
   return (
     <div
       className="flex items-center gap-2 overflow-hidden"
       style={{ height: "var(--chord-strip-h)", backgroundColor: "var(--bg)" }}
     >
-      {currentName && (
-        // Mobile only: this replaces the horizontal diagram palette, so the
-        // current chord's shape has to be reachable without it.
-        <div className="chord-strip-diagram md:hidden shrink-0 pl-2" data-chord-diagram={currentName}>
-          <ChordDiagram name={currentName} size="sm" />
+      {diagramName && (
+        // Mobile only: this replaces the horizontal diagram palette, so a
+        // chord's shape has to be reachable without it, both for the chord
+        // that is playing and for one the player taps in the sheet.
+        <div
+          className="chord-strip-diagram md:hidden shrink-0 pl-2"
+          data-chord-diagram={diagramName}
+          data-preview={preview ? "true" : undefined}
+        >
+          <ChordDiagram name={diagramName} size="sm" />
         </div>
       )}
       <div className="chord-strip flex-1" aria-label="Chord sequence" role="group">
