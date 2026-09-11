@@ -182,6 +182,30 @@ test.describe("Chord strip", () => {
     expect((await wrapper().boundingBox())?.height).toBe(56);
   });
 
+  test("tapping a chord on mobile shows its shape in the strip, then reverts", async ({ page }) => {
+    // With the strip enabled the mobile diagram palette is not rendered, and
+    // the strip's own diagram sits outside ChordProView's root, so the sheet
+    // cannot reach it through the DOM. Tapping used to do nothing at all while
+    // the tokens still looked tappable.
+    await page.setViewportSize({ width: 390, height: 844 }); // the palette is gone here
+    await page.goto("/");
+    await expect(page.locator(".chord-strip")).toBeVisible();
+
+    const diagram = page.locator(".chord-strip-diagram");
+    // At progress 0 the playing chord is the sheet's first, C.
+    await expect(diagram).toHaveAttribute("data-chord-diagram", "C");
+
+    // Tap a DIFFERENT chord, so a passing result cannot just be the current one.
+    await page.locator('[data-chord="Am"]').first().click();
+
+    await expect(diagram).toHaveAttribute("data-chord-diagram", "Am");
+    await expect(diagram).toHaveAttribute("data-preview", "true");
+
+    // And it hands the strip back to the music rather than sticking.
+    await expect(diagram).toHaveAttribute("data-chord-diagram", "C", { timeout: 8_000 });
+    await expect(diagram).not.toHaveAttribute("data-preview", "true");
+  });
+
   test("a font-scale change keeps the highlight on a real line", async ({ page }) => {
     progressMs = Math.floor(DURATION_MS * 0.5);
     await page.goto("/");
